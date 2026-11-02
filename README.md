@@ -5,7 +5,26 @@ secret word — except the **Grinches** (imposters, red), who must bluff their w
 **Elves** (innocents, green) give one-word clues out loud, discuss, and vote on their own phones
 to catch every Grinch.
 
-## Quick start (local)
+## Easiest way to play: double-click `Start IMPOSTER.bat`
+
+Works the same way as PANALO's *Start Buzzer.bat*:
+
+1. Double-click **Start IMPOSTER.bat** in this folder.
+2. **First time only:** Windows asks for administrator permission. Click **Yes**. This adds one
+   firewall rule so phones on your Wi-Fi can connect. The first run also installs and builds the
+   game, which takes a minute.
+3. The game opens in your browser. Create a room. The lobby shows a **QR code** that players scan.
+   - At first the QR code uses your Wi-Fi address, so players must be on the same Wi-Fi.
+   - A few seconds later it switches to an **online link** (`https://….trycloudflare.com`), so
+     players on any Wi-Fi or mobile data can join. The link is new every time you start.
+4. Keep the black window open while you play. Close it to stop the game.
+
+Options, for running `scripts\start-imposter.ps1` yourself: `-NoOnline` (same Wi-Fi only),
+`-NoBrowser`, `-NoSetup` (skip the admin/firewall step).
+To undo the firewall rule: `netsh advfirewall firewall delete rule name="IMPOSTER Christmas"`
+in an administrator PowerShell.
+
+## Quick start for developers
 
 Requires **Node.js 20+**.
 

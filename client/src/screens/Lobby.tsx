@@ -1,21 +1,63 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Copy, Link2, Play, QrCode, Settings2, Share2, UserX } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MAX_PLAYERS, MIN_PLAYERS, maxGrinchCount, resolveGrinchCount } from '@imposter/shared';
 import { PlayerRow } from '../components/RoomChrome';
 import { SettingsSheet, settingsSummary } from '../components/SettingsSheet';
 import { ActionBar, Button, ConfirmButton, SectionTitle } from '../components/ui';
 import { useRoom } from '../state/GameProvider';
 
-export function inviteLink(code: string) {
-  return `${window.location.origin}/?join=${code}`;
+interface JoinInfo {
+  lan: string[];
+  online: string | null;
+  onlinePending: boolean;
+}
+
+const isLocalhost = () => ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+
+/**
+ * Asks the server which address other phones should use. When the host opened the game on
+ * `localhost` (e.g. via "Start IMPOSTER.bat"), localhost links would be useless to phones, so
+ * we prefer the online link, then the Wi-Fi address.
+ */
+function useJoinInfo(): JoinInfo | null {
+  const [info, setInfo] = useState<JoinInfo | null>(null);
+  useEffect(() => {
+    let stop = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const load = async () => {
+      try {
+        const res = await fetch('/api/join-info', { cache: 'no-store' });
+        const data = (await res.json()) as JoinInfo;
+        if (stop) return;
+        setInfo(data);
+        if (data.onlinePending) timer = setTimeout(load, 3000); // keep checking until the online link is up
+      } catch {
+        /* older server or offline: fall back to this page's address */
+      }
+    };
+    void load();
+    return () => {
+      stop = true;
+      clearTimeout(timer);
+    };
+  }, []);
+  return info;
+}
+
+function joinBase(info: JoinInfo | null): { base: string; reach: 'online' | 'wifi' | 'this-address' } {
+  if (info?.online) return { base: info.online, reach: 'online' };
+  if (isLocalhost() && info?.lan[0]) return { base: info.lan[0], reach: 'wifi' };
+  return { base: window.location.origin, reach: window.location.protocol === 'https:' ? 'online' : 'this-address' };
 }
 
 export function InviteCard() {
   const { room, toast } = useRoom();
-  const [showQr, setShowQr] = useState(false);
-  const link = inviteLink(room.code);
+  const [showQr, setShowQr] = useState(true);
+  const info = useJoinInfo();
+  const { base, reach } = joinBase(info);
+  const link = `${base}/?join=${room.code}`;
   const copy = (text: string, what: string) =>
     navigator.clipboard?.writeText(text).then(
       () => toast(`${what} copied!`, 'success'),
@@ -65,6 +107,19 @@ export function InviteCard() {
               <QRCodeSVG value={link} size={176} bgColor="#ffffff" fgColor="#07090c" level="M" />
             </div>
             <p className="mt-2 break-all text-center text-xs text-night-300">{link}</p>
+            <p
+              className={`mt-1 text-center text-xs font-semibold ${
+                reach === 'online' ? 'text-elf-light' : 'text-gold'
+              }`}
+            >
+              {reach === 'online'
+                ? '🌍 Works on any Wi-Fi or mobile data'
+                : reach === 'wifi'
+                  ? info?.onlinePending
+                    ? '📶 Same Wi-Fi only for now — online link is starting…'
+                    : '📶 Phones must be on the same Wi-Fi as this computer'
+                  : ''}
+            </p>
           </motion.div>
         )}
       </AnimatePresence>

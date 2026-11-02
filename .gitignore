@@ -6,3 +6,5 @@ dist/
 !.env.example
 coverage/
 .DS_Store
+scripts/cloudflared.exe
+scripts/cloudflared.exe.part
