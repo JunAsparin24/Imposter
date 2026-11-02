@@ -1,0 +1,16 @@
+{
+  "id": "characters",
+  "words": [
+    { "word": "Santa Claus", "aliases": ["Santa", "Father Christmas", "Saint Nick", "Kris Kringle"] }, "Mrs. Claus", "Rudolph", "Frosty", { "word": "Ebenezer Scrooge", "aliases": ["Scrooge"] },
+    "Tiny Tim", "Jack Frost", "Krampus", "Kevin McCallister", "Clark Griswold",
+    "Sugar Plum Fairy", "Dasher", "Dancer", "Prancer", "Vixen",
+    "Comet", "Cupid", "Donner", "Blitzen", "Olaf",
+    "Jack Skellington", "Oogie Boogie", "Hermey the Dentist", "Yukon Cornelius", "Abominable Snow Monster",
+    "Heat Miser", "Snow Miser", "Cindy Lou Who", "George Bailey", "Clarence the Angel",
+    "Charlie Brown", "Snoopy", "Ralphie", "Ghost of Christmas Past", "Ghost of Christmas Present",
+    "Ghost of Christmas Yet to Come", "Jacob Marley", "Bob Cratchit", "Hans Gruber", "John McClane",
+    "The Wet Bandits", "Buddy Hobbs", "La Befana", "Sinterklaas", "The Snow Queen",
+    "Nutcracker Prince", "Clara", "Mary and Joseph", "The Three Wise Men", "Baby Jesus",
+    "Ded Moroz", "Gingerbread Girl", "Scott Calvin", "Max the Dog"
+  ]
+}

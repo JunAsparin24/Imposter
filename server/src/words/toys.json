@@ -1,0 +1,16 @@
+{
+  "id": "toys",
+  "words": [
+    "Teddy Bear", "Toy Train", "Rocking Horse", { "word": "LEGO", "aliases": ["Legos"] }, "Jigsaw Puzzle",
+    "Board Game", "Yo-Yo", "Slinky", "Rubik's Cube", "Jack-in-the-Box",
+    "Toy Soldier", "Dollhouse", "Barbie", "Action Figure", "Remote Control Car",
+    "Kite", "Spinning Top", "Play-Doh", "Etch A Sketch", "Hula Hoop",
+    "Monopoly", "Scrabble", "Jenga", "Uno", "Chess",
+    "Twister", "Connect Four", "Hungry Hungry Hippos", "Mr. Potato Head", "Nerf Blaster",
+    "Hot Wheels", "Stuffed Animal", "Baby Doll", "Marbles", "Kaleidoscope",
+    "Magic 8 Ball", "Bouncy Ball", "Water Gun", "Frisbee", "Skateboard",
+    "Bicycle", "Scooter", "Roller Skates", "Toy Drum", "Xylophone",
+    "Tamagotchi", "Pokemon Cards", "Super Mario", "Minecraft", "Mario Kart",
+    "Fortnite", "Tetris"
+  ]
+}

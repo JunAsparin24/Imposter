@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html,
+  body {
+    @apply bg-night-950 text-snow font-sans antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+  body {
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+  button,
+  [role='button'] {
+    touch-action: manipulation;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-gold ring-offset-2 ring-offset-night-950;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-3xl border border-white/[0.07] bg-night-800/80 backdrop-blur-sm;
+  }
+  .label {
+    @apply text-[11px] font-bold uppercase tracking-[0.18em] text-night-300;
+  }
+  .heading {
+    @apply font-display uppercase tracking-wide leading-none;
+  }
+  .no-callout {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .pb-safe {
+    padding-bottom: max(1rem, var(--safe-bottom));
+  }
+  .pt-safe {
+    padding-top: max(0.5rem, var(--safe-top));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-snowfall,
+  .animate-twinkle {
+    animation: none !important;
+  }
+}

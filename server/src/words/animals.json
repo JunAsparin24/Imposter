@@ -1,0 +1,16 @@
+{
+  "id": "animals",
+  "words": [
+    "Reindeer", "Penguin", "Polar Bear", "Arctic Fox", "Snowy Owl",
+    "Robin", "Partridge", "Turtle Dove", "French Hen", "Swan",
+    "Goose", "Donkey", "Camel", "Sheep", "Ox",
+    "Husky", "Moose", "Caribou", "Seal", "Walrus",
+    "Orca", "Narwhal", "Snow Leopard", "Mountain Goat", "Snowshoe Hare",
+    "Squirrel", "Chipmunk", "Beaver", "Cardinal", "Chickadee",
+    "Hedgehog", "Badger", "Mouse", "Kitten", "Puppy",
+    "Horse", "Pony", "Turkey", "Pig", "Wolf",
+    "Brown Bear", "Red Fox", "Deer", "Lynx", "Puffin",
+    "Ermine", "Yak", "Albatross", "Emperor Penguin", "Beluga Whale",
+    "Raccoon", "Owl", "Lamb", "Snow Monkey", "Arctic Hare"
+  ]
+}

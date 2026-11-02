@@ -1,0 +1,15 @@
+{
+  "id": "gadgets",
+  "words": [
+    { "word": "Smartphone", "aliases": ["Phone"] }, "Headphones", "Smartwatch", "Tablet", "Game Console",
+    "Drone", "Camera", "E-Reader", "Bluetooth Speaker", "VR Headset",
+    "Laptop", "Smart Speaker", "Fitness Tracker", "Instant Camera", "Wireless Earbuds",
+    "Gaming Controller", "Electric Toothbrush", "Hair Dryer", "Coffee Machine", "Air Fryer",
+    "Robot Vacuum", "Phone Case", "Power Bank", "Karaoke Machine", "Record Player",
+    "Digital Photo Frame", "Gift Card", "Socks", "Scarf", "Mittens",
+    "Beanie", "Slippers", "Pajamas", "Perfume", "Wristwatch",
+    "Wallet", "Jewelry", "Scented Candle", "Bath Bombs", "Hoodie",
+    "Cookbook", "Puzzle Box", "Electric Scooter", "Projector", "Smart Lights",
+    "Keyboard", "Gaming Mouse", "Webcam", "Selfie Stick", "Electric Blanket"
+  ]
+}

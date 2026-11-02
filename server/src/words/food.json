@@ -1,0 +1,16 @@
+{
+  "id": "food",
+  "words": [
+    "Gingerbread Man", "Candy Cane", { "word": "Hot Chocolate", "aliases": ["Hot Cocoa", "Cocoa"] }, "Eggnog", "Fruitcake",
+    { "word": "Christmas Pudding", "aliases": ["Plum Pudding"] }, "Mince Pie", { "word": "Roast Turkey", "aliases": ["Turkey"] }, { "word": "Glazed Ham", "aliases": ["Ham", "Christmas Ham"] }, "Stuffing",
+    "Cranberry Sauce", "Mashed Potatoes", "Roast Potatoes", "Gravy", { "word": "Brussels Sprouts", "aliases": ["Brussel Sprouts", "Sprouts"] },
+    "Pigs in Blankets", "Yule Log", "Panettone", "Stollen", "Sugar Cookies",
+    "Shortbread", "Peppermint Bark", "Fudge", { "word": "Roasted Chestnuts", "aliases": ["Chestnuts"] }, { "word": "Mulled Wine", "aliases": ["Gluhwein"] },
+    "Apple Cider", "Gingerbread House", "Candied Yams", "Pumpkin Pie", "Pecan Pie",
+    "Cinnamon Rolls", "Marshmallows", "Whipped Cream", "Prime Rib", "Tamales",
+    "Clementines", "Toffee", "Chocolate Coins", "Rum Balls", "Trifle",
+    "Pavlova", "Cheese Board", "Shrimp Cocktail", "Deviled Eggs", "Dinner Rolls",
+    "Peppermint Mocha", "Milk and Cookies", "Caramel Popcorn", "Roast Goose", "Snickerdoodles",
+    "Rocky Road", "Cranberry Juice", "Christmas Cake", "Lebkuchen", "Apple Pie"
+  ]
+}

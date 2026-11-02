@@ -1,0 +1,187 @@
+import { AnimatePresence, motion } from 'framer-motion';
+import { Eye, EyeOff, Fingerprint } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import type { PrivatePlayerState } from '@imposter/shared';
+import { play, vibrate } from '../lib/sound';
+import { useGame } from '../state/GameProvider';
+import { Toggle } from './ui';
+
+/**
+ * Private role card. Hidden by default: hold to peek (release hides it), or switch on
+ * tap-to-toggle for accessibility. Only shows what the server sent this player —
+ * a Grinch's browser never receives the secret word at all.
+ */
+export function RoleCard({ priv, compact = false }: { priv: PrivatePlayerState; compact?: boolean }) {
+  const { prefs, setPrefs } = useGame();
+  const [shown, setShown] = useState(false);
+  const toggleMode = prefs.tapToToggle;
+
+  // Hide again if the tab is backgrounded, so a role is never left on screen.
+  useEffect(() => {
+    const hide = () => document.visibilityState === 'hidden' && setShown(false);
+    document.addEventListener('visibilitychange', hide);
+    return () => document.removeEventListener('visibilitychange', hide);
+  }, []);
+
+  const reveal = () => {
+    if (!shown) {
+      play('reveal');
+      vibrate(20);
+    }
+    setShown(true);
+  };
+  const hide = () => setShown(false);
+
+  const holdHandlers = toggleMode
+    ? { onClick: () => (shown ? hide() : reveal()) }
+    : {
+        onPointerDown: (e: React.PointerEvent) => {
+          e.currentTarget.setPointerCapture?.(e.pointerId);
+          reveal();
+        },
+        onPointerUp: hide,
+        onPointerCancel: hide,
+        onLostPointerCapture: hide,
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {
+            e.preventDefault();
+            reveal();
+          }
+        },
+        onKeyUp: (e: React.KeyboardEvent) => {
+          if (e.key === ' ' || e.key === 'Enter') hide();
+        },
+        onBlur: hide,
+      };
+
+  const isGrinch = priv.role === 'GRINCH';
+  const isElf = priv.role === 'ELF';
+  const tone = isGrinch
+    ? 'border-grinch/60 bg-gradient-to-b from-grinch-deep to-night-900 shadow-glow-red'
+    : isElf
+      ? 'border-elf/60 bg-gradient-to-b from-elf-deep to-night-900 shadow-glow-green'
+      : 'border-white/10 bg-night-800';
+
+  return (
+    <div className="w-full">
+      <button
+        type="button"
+        {...holdHandlers}
+        onContextMenu={(e) => e.preventDefault()}
+        aria-pressed={toggleMode ? shown : undefined}
+        aria-label={toggleMode ? (shown ? 'Hide your role' : 'Show your role') : 'Press and hold to reveal your role'}
+        className={`no-callout relative flex w-full touch-none flex-col items-stretch justify-center overflow-hidden rounded-[28px] border-2 text-center transition-colors duration-300 ${
+          shown ? tone : 'border-dashed border-white/15 bg-night-800/90'
+        } ${compact ? 'min-h-[300px]' : 'min-h-[360px]'}`}
+      >
+        <AnimatePresence mode="wait" initial={false}>
+          {!shown ? (
+            <motion.div
+              key="hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              transition={{ duration: 0.15 }}
+              className="flex flex-col items-center justify-center gap-5 p-6"
+            >
+              <motion.div
+                animate={{ scale: [1, 1.08, 1] }}
+                transition={{ repeat: Infinity, duration: 1.8 }}
+                className="grid h-20 w-20 place-items-center rounded-full bg-white/[0.05] text-gold ring-1 ring-gold/30"
+              >
+                <Fingerprint size={40} />
+              </motion.div>
+              <p className="heading max-w-[16rem] text-xl leading-tight">
+                {toggleMode ? 'Tap to reveal your role' : 'Tap and hold to reveal your role'}
+              </p>
+              <p className="text-sm text-night-300">Make sure nobody is peeking 👀</p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="shown"
+              initial={{ opacity: 0, rotateX: -25, scale: 0.94 }}
+              animate={{ opacity: 1, rotateX: 0, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+              className="flex flex-col items-center justify-center gap-3 p-5"
+            >
+              <RoleContent priv={priv} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </button>
+      <div className="mt-2 flex items-center justify-between gap-3 px-1">
+        <span className="flex items-center gap-1.5 text-xs text-night-300">
+          {shown ? <Eye size={14} /> : <EyeOff size={14} />}
+          {shown ? 'Visible' : 'Hidden'}
+        </span>
+        <div className="w-auto">
+          <Toggle
+            checked={toggleMode}
+            onChange={(v) => {
+              setShown(false);
+              setPrefs({ tapToToggle: v });
+            }}
+            label="Tap to toggle"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RoleContent({ priv }: { priv: PrivatePlayerState }) {
+  if (priv.role === 'ELF') {
+    return (
+      <>
+        <span className="text-4xl" aria-hidden>
+          🧝
+        </span>
+        <p className="label !text-elf-light">You are innocent</p>
+        <h2 className="heading text-[clamp(1.9rem,9vw,2.6rem)] text-elf">You're an Elf</h2>
+        <div className="mt-2 w-full rounded-2xl bg-black/30 px-4 py-3">
+          <p className="label">Your secret word</p>
+          <p className="heading mt-1 break-words text-[clamp(1.6rem,8.5vw,2.4rem)] text-snow">{priv.word}</p>
+          {priv.categoryName && <p className="mt-1.5 text-xs font-semibold text-night-300">{priv.categoryName}</p>}
+        </div>
+        <p className="max-w-[18rem] text-sm text-snow/80">Give a one-word clue without giving the word away.</p>
+      </>
+    );
+  }
+  if (priv.role === 'GRINCH') {
+    return (
+      <>
+        <span className="text-4xl" aria-hidden>
+          😈
+        </span>
+        <p className="label !text-grinch-light">You are an imposter</p>
+        <h2 className="heading text-[clamp(1.9rem,9vw,2.6rem)] text-grinch">You're the Grinch</h2>
+        <div className="mt-1 w-full rounded-2xl bg-black/30 px-4 py-3">
+          <p className="label">Secret word</p>
+          <p className="heading mt-1 text-3xl text-grinch-light">???</p>
+          {priv.categoryName && <p className="mt-1 text-xs font-semibold text-night-300">Hint: {priv.categoryName}</p>}
+        </div>
+        <div className="w-full rounded-2xl bg-black/30 px-4 py-3">
+          <p className="label">{priv.teammates.length ? 'Your fellow Grinches' : 'Your team'}</p>
+          {priv.teammates.length ? (
+            <p className="mt-1 break-words text-lg font-bold text-grinch-light">
+              {priv.teammates.map((t) => `${t.avatar} ${t.name}`).join(', ')}
+            </p>
+          ) : (
+            <p className="mt-1 text-lg font-bold text-grinch-light">You're the only Grinch.</p>
+          )}
+        </div>
+        <p className="max-w-[18rem] text-sm text-snow/80">Blend in with the Elves. Listen closely to their clues.</p>
+      </>
+    );
+  }
+  return (
+    <>
+      <span className="text-4xl" aria-hidden>
+        👀
+      </span>
+      <h2 className="heading text-2xl">Spectating</h2>
+      <p className="max-w-[18rem] text-sm text-night-300">You're sitting out this match. You'll be dealt in next match.</p>
+    </>
+  );
+}
