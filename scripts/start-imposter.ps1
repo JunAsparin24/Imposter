@@ -94,8 +94,27 @@ try {
 # ---------------------------------------------------------
 # 4. Stop any copy that is still running from last time
 # ---------------------------------------------------------
-Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | ForEach-Object {
-  Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue
+# Note: Windows sometimes reports a listening port with a blank State, so don't filter on
+# "Listen" - look for anything bound to the port with no remote end.
+function Get-PortOwners {
+  Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue |
+    Where-Object { $_.OwningProcess -ne 0 -and ($_.State -eq 'Listen' -or $_.RemotePort -eq 0) } |
+    Select-Object -ExpandProperty OwningProcess -Unique
+}
+foreach ($id in @(Get-PortOwners)) {
+  $proc = Get-Process -Id $id -ErrorAction SilentlyContinue
+  if ($proc -and $proc.ProcessName -eq 'node') {
+    Say "Stopping an old copy of the game that was still running..." Yellow
+    Stop-Process -Id $id -Force -ErrorAction SilentlyContinue
+  }
+}
+for ($i = 0; $i -lt 10 -and @(Get-PortOwners).Count -gt 0; $i++) { Start-Sleep -Milliseconds 300 }
+$busy = @(Get-PortOwners)
+if ($busy.Count -gt 0) {
+  $names = ($busy | ForEach-Object { (Get-Process -Id $_ -ErrorAction SilentlyContinue).ProcessName }) -join ', '
+  Say "Port $Port is being used by another program ($names)." Red
+  Say "Close that program (or restart the computer) and double-click Start IMPOSTER.bat again." Yellow
+  exit 1
 }
 Get-Process cloudflared -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $TunnelExe } |
   Stop-Process -Force -ErrorAction SilentlyContinue
