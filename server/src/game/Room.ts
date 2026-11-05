@@ -644,14 +644,12 @@ export class Room {
   private beginRound(): void {
     const m = this.match!;
     m.round++;
-    const previousFirst = m.speakingOrder[0];
-    const order = shuffle(this.aliveIds(), this.deps.rng);
-    // Rotate who starts: the previous round's first speaker never starts again immediately.
-    if (order.length > 1 && order[0] === previousFirst) {
-      const j = 1 + this.deps.rng.int(order.length - 1);
-      [order[0], order[j]] = [order[j], order[0]];
-    }
-    m.speakingOrder = order;
+    // The order is shuffled once, in round 1. Later rounds keep that same order and just
+    // skip anyone who has been voted out or left.
+    m.speakingOrder =
+      m.speakingOrder.length === 0
+        ? shuffle(this.aliveIds(), this.deps.rng)
+        : m.speakingOrder.filter((id) => this.isAlive(id));
     m.turnIndex = 0;
     m.spokenIds = new Set();
     m.turnStartedAt = this.now();

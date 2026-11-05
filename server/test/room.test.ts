@@ -178,19 +178,26 @@ describe('clue phase', () => {
     expect(t.room.phase).toBe('CLUE');
   });
 
-  it('moves to discussion once everyone has spoken and rotates the first speaker', () => {
-    const t = makeRoom(5, { allowSkipVote: true });
+  it('keeps the first round speaking order every round, skipping voted-out players', () => {
+    const t = makeRoom(6, { allowSkipVote: true, grinchCount: 1, finalGuessEnabled: false });
     startToClues(t);
     const firstOrder = t.room.publicState().match!.speakingOrder;
-    expect(new Set(firstOrder).size).toBe(5);
+    expect(new Set(firstOrder).size).toBe(6);
     finishClues(t);
     expect(t.room.phase).toBe('DISCUSSION');
     t.room.startVoting(t.host, t.room.phaseSeq);
     voteAll(t, () => 'SKIP');
     continueResults(t);
-    const second = t.room.publicState().match!;
-    expect(second.round).toBe(2);
-    expect(second.speakingOrder[0]).not.toBe(firstOrder[0]);
+    // Nobody out: round 2 has the exact same order.
+    expect(t.room.publicState().match!.round).toBe(2);
+    expect(t.room.publicState().match!.speakingOrder).toEqual(firstOrder);
+    // Vote out an Elf: round 3 keeps the order, just without them.
+    toVoting(t);
+    const out = elves(t)[0];
+    voteAll(t, (voter) => (voter === out ? t.room.aliveIds().find((id) => id !== out)! : out));
+    continueResults(t);
+    expect(t.room.publicState().match!.round).toBe(3);
+    expect(t.room.publicState().match!.speakingOrder).toEqual(firstOrder.filter((id) => id !== out));
   });
 
   it('skips a disconnected speaker after the grace period', () => {
