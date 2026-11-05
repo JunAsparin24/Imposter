@@ -49,7 +49,9 @@ export const saveCustomPack = (p: SavedPack) => write(PACK_KEY, p);
 export interface Prefs {
   muted: boolean;
   tapToToggle: boolean;
+  /** Background music on the room screen. */
+  music: boolean;
 }
-const DEFAULT_PREFS: Prefs = { muted: false, tapToToggle: false };
+const DEFAULT_PREFS: Prefs = { muted: false, tapToToggle: false, music: true };
 export const loadPrefs = (): Prefs => ({ ...DEFAULT_PREFS, ...(read<Partial<Prefs>>(PREFS_KEY) ?? {}) });
 export const savePrefs = (p: Prefs) => write(PREFS_KEY, p);

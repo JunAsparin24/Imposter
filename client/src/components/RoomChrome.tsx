@@ -74,6 +74,14 @@ export function RoomHeader() {
             label={prefs.muted ? 'Sound off (just me)' : 'Sound on'}
             description={room.settings.soundEnabled ? undefined : 'The host has turned sound effects off for the room.'}
           />
+          {isDisplay && (
+            <Toggle
+              checked={prefs.music}
+              onChange={(v) => setPrefs({ music: v })}
+              label="Background music"
+              description="Plays on this room screen only. It gets quieter during clues and discussion."
+            />
+          )}
           <Button
             block
             variant="outline"

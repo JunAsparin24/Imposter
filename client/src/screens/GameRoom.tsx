@@ -4,6 +4,7 @@ import type { Phase } from '@imposter/shared';
 import { RoomHeader } from '../components/RoomChrome';
 import { Spinner } from '../components/ui';
 import { useWakeLock } from '../lib/hooks';
+import { playMusic, stopMusic } from '../lib/music';
 import { play, vibrate } from '../lib/sound';
 import { FrozenStateContext, useGame, useRoom } from '../state/GameProvider';
 import { DisplayLobby, DisplayRoleReveal } from './DisplayScreens';
@@ -38,6 +39,7 @@ export function GameRoom() {
   const Screen = (isDisplay && DISPLAY_SCREENS[room.phase]) || SCREENS[room.phase];
   usePhaseFeedback();
   useWakeLock(isDisplay || room.phase !== 'LOBBY');
+  useRoomMusic(isDisplay);
   const announcement = useAnnouncement();
 
   // A screen is re-mounted on each phase change *and* each new vote (so a revote animates in).
@@ -98,6 +100,21 @@ function PhaseFrame({ children }: { children: React.ReactNode }) {
   const snapshot = useRef(state);
   if (isPresent && state) snapshot.current = state;
   return <FrozenStateContext.Provider value={snapshot.current}>{children}</FrozenStateContext.Provider>;
+}
+
+/**
+ * Background music on the room screen: normal volume in the lobby and between rounds,
+ * quieter while people are giving clues or arguing so everyone can hear each other.
+ */
+function useRoomMusic(isDisplay: boolean) {
+  const { room, prefs } = useRoom();
+  const on = isDisplay && prefs.music && !prefs.muted && room.settings.soundEnabled;
+  const talking = room.phase === 'CLUE' || room.phase === 'DISCUSSION' || room.phase === 'FINAL_GUESS';
+  useEffect(() => {
+    if (on) playMusic(talking ? 0.12 : 0.35);
+    else stopMusic();
+  }, [on, talking]);
+  useEffect(() => () => stopMusic(), []);
 }
 
 /** A short spoken summary of the current moment, for screen-reader users. */
