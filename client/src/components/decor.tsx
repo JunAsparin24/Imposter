@@ -58,15 +58,18 @@ export function Logo({ size = 'lg' }: { size?: 'sm' | 'md' | 'lg' }) {
         }`}
       >
         IMP<span className="text-grinch [-webkit-text-fill-color:theme(colors.grinch.DEFAULT)]">O</span>STER
+        {!big && <span className="text-grinch [-webkit-text-fill-color:theme(colors.grinch.DEFAULT)]"> MAFIA</span>}
       </motion.h1>
       {big && (
         <motion.p
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35, duration: 0.5 }}
-          className="mt-1 text-[clamp(0.8rem,3.2vw,1rem)] font-bold uppercase tracking-[0.4em] text-night-300"
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.3, type: 'spring', damping: 12 }}
+          className={`heading -mt-1 uppercase tracking-[0.55em] text-grinch drop-shadow-[0_0_18px_rgba(239,68,68,0.35)] ${
+            size === 'lg' ? 'text-[clamp(1.4rem,7vw,2.6rem)]' : 'text-[clamp(1.1rem,1.8vw,1.6rem)]'
+          }`}
         >
-          Find the faker
+          Mafia
         </motion.p>
       )}
     </div>

@@ -68,7 +68,7 @@ export function InviteCard() {
           icon={canShare ? <Share2 size={15} /> : <Link2 size={15} />}
           onClick={() =>
             canShare
-              ? navigator.share({ title: 'IMPOSTER', text: `Join my game! Code ${room.code}`, url: link }).catch(() => {})
+              ? navigator.share({ title: 'Imposter Mafia', text: `Join my Imposter Mafia game! Code ${room.code}`, url: link }).catch(() => {})
               : copy(link, 'Invite link')
           }
         >

@@ -1,4 +1,4 @@
-# IMPOSTER
+# Imposter Mafia
 
 A multiplayer party game you play on your phones. Everyone gets the same secret word except
 the **Imposters** (red), who only get a hint word and have to bluff. The **Innocents** (green)

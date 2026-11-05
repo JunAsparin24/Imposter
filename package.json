@@ -2,7 +2,7 @@
   "name": "imposter-christmas",
   "version": "1.0.0",
   "private": true,
-  "description": "IMPOSTER: Christmas Edition - a real-time multiplayer social deduction party game",
+  "description": "Imposter Mafia - a real-time multiplayer social deduction party game",
   "workspaces": [
     "shared",
     "server",

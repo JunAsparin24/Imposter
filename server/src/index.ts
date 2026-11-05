@@ -91,7 +91,7 @@ createGameServer({ io, store: new InMemoryRoomStore(), words: new WordBank(), tr
 
 // '::' listens on IPv4 and IPv6, so "localhost" answers instantly whichever one it resolves to.
 httpServer.listen(PORT, '::', () => {
-  console.log(`IMPOSTER server on http://localhost:${PORT}`);
+  console.log(`Imposter Mafia server on http://localhost:${PORT}`);
   if (!serveClient && !DEV) console.log('   (client not built - run `npm run build`, or use `npm run dev`)');
   console.log(`   Open the game: http://localhost:${appPort}`);
   for (const ip of lanAddresses()) console.log(`   Phones on your Wi-Fi: http://${ip}:${appPort}`);
