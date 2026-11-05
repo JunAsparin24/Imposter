@@ -7,11 +7,11 @@ const steps = [
   },
   {
     title: 'Check your role',
-    body: "Hold your card to peek. Elves see the secret word. Grinches only see a hint word, plus who the other Grinches are.",
+    body: "Hold your card to peek. Innocents see the secret word. Imposters only see a hint word, plus who the other Imposters are.",
   },
   {
     title: 'Give clues',
-    body: 'Go around and each say one word out loud that fits the secret word. Too obvious and the Grinch catches on. Too vague and people get suspicious.',
+    body: 'Go around and each say one word out loud that fits the secret word. Too obvious and the Imposter catches on. Too vague and people get suspicious.',
   },
   {
     title: 'Argue',
@@ -23,7 +23,7 @@ const steps = [
   },
   {
     title: 'Last chance',
-    body: 'A Grinch who gets caught can say one guess out loud. If they get the word, the Grinches win anyway.',
+    body: 'An Imposter who gets caught can say one guess out loud. If they get the word, the Imposters win anyway.',
   },
 ];
 
@@ -32,12 +32,12 @@ export function HowToPlay() {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2.5">
         <div className="rounded-2xl border-l-4 border-elf bg-white/[0.03] px-3.5 py-3">
-          <p className="heading text-lg text-elf">Elves</p>
-          <p className="mt-1 text-xs leading-relaxed text-snow/80">Know the word. Find every Grinch and vote them out.</p>
+          <p className="heading text-lg text-elf">Innocents</p>
+          <p className="mt-1 text-xs leading-relaxed text-snow/80">Know the word. Find every Imposter and vote them out.</p>
         </div>
         <div className="rounded-2xl border-l-4 border-grinch bg-white/[0.03] px-3.5 py-3">
-          <p className="heading text-lg text-grinch">Grinches</p>
-          <p className="mt-1 text-xs leading-relaxed text-snow/80">Only get a hint. Fake it until there are as many of you as Elves.</p>
+          <p className="heading text-lg text-grinch">Imposters</p>
+          <p className="mt-1 text-xs leading-relaxed text-snow/80">Only get a hint. Fake it until there are as many of you as Innocents.</p>
         </div>
       </div>
 
@@ -56,11 +56,11 @@ export function HowToPlay() {
       <div className="rounded-2xl bg-white/[0.03] px-4 py-3.5 text-sm">
         <p className="mb-2 font-bold">Points</p>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-night-300">
-          <dt>Elves win</dt>
+          <dt>Innocents win</dt>
           <dd className="text-right font-bold text-elf">+{SCORING.ELF_WIN}</dd>
-          <dt>Grinches win</dt>
+          <dt>Imposters win</dt>
           <dd className="text-right font-bold text-grinch">+{SCORING.GRINCH_WIN}</dd>
-          <dt>Voting for a Grinch</dt>
+          <dt>Voting for an Imposter</dt>
           <dd className="text-right font-bold text-snow">+{SCORING.CORRECT_VOTE}</dd>
           <dt>Guessing the word</dt>
           <dd className="text-right font-bold text-gold">+{SCORING.FINAL_GUESS_BONUS}</dd>

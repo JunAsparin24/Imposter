@@ -10,7 +10,7 @@ import { Toggle } from './ui';
 /**
  * Private role card. Hidden by default: hold to peek (release hides it), or switch on
  * tap-to-toggle for accessibility. Only shows what the server sent this player:
- * a Grinch's browser never receives the secret word at all.
+ * an Imposter's browser never receives the secret word at all.
  */
 export function RoleCard({ priv, compact = false }: { priv: PrivatePlayerState; compact?: boolean }) {
   const { prefs, setPrefs } = useGame();
@@ -135,8 +135,8 @@ function RoleContent({ priv }: { priv: PrivatePlayerState }) {
   if (priv.role === 'ELF') {
     return (
       <>
-        <p className="label !text-elf-light">You are innocent</p>
-        <h2 className="heading text-[clamp(1.9rem,9vw,2.6rem)] text-elf">You're an Elf</h2>
+        <p className="label !text-elf-light">Your secret role</p>
+        <h2 className="heading text-[clamp(1.9rem,9vw,2.6rem)] text-elf">Innocent</h2>
         <div className="mt-2 w-full rounded-2xl bg-black/30 px-4 py-3">
           <p className="label">Your secret word</p>
           <p className="heading mt-1 break-words text-[clamp(1.6rem,8.5vw,2.4rem)] text-snow">{priv.word}</p>
@@ -149,8 +149,8 @@ function RoleContent({ priv }: { priv: PrivatePlayerState }) {
   if (priv.role === 'GRINCH') {
     return (
       <>
-        <p className="label !text-grinch-light">You are an imposter</p>
-        <h2 className="heading text-[clamp(1.9rem,9vw,2.6rem)] text-grinch">You're the Grinch</h2>
+        <p className="label !text-grinch-light">Your secret role</p>
+        <h2 className="heading text-[clamp(1.9rem,9vw,2.6rem)] text-grinch">Imposter</h2>
         <div className="mt-1 w-full rounded-2xl bg-black/30 px-4 py-3">
           <p className="label">Secret word</p>
           <p className="heading mt-1 text-3xl text-grinch-light">???</p>
@@ -158,21 +158,21 @@ function RoleContent({ priv }: { priv: PrivatePlayerState }) {
             <div className="mt-2 rounded-xl bg-gold/10 px-3 py-2">
               <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-gold/80">Your hint</p>
               <p className="heading mt-0.5 break-words text-2xl text-gold">{priv.hint}</p>
-              <p className="mt-0.5 text-[11px] text-night-300">Every Grinch has the same hint</p>
+              <p className="mt-0.5 text-[11px] text-night-300">Every Imposter has the same hint</p>
             </div>
           )}
         </div>
         <div className="w-full rounded-2xl bg-black/30 px-4 py-3">
-          <p className="label">{priv.teammates.length ? 'Your fellow Grinches' : 'Your team'}</p>
+          <p className="label">{priv.teammates.length ? 'Your fellow Imposters' : 'Your team'}</p>
           {priv.teammates.length ? (
             <p className="mt-1 break-words text-lg font-bold text-grinch-light">
               {priv.teammates.map((t, i) => (<span key={t.id} className="inline-flex items-center gap-1">{i > 0 && ', '}<AvatarImg id={t.avatar} size={22} /> {t.name}</span>))}
             </p>
           ) : (
-            <p className="mt-1 text-lg font-bold text-grinch-light">You're the only Grinch.</p>
+            <p className="mt-1 text-lg font-bold text-grinch-light">You're the only Imposter.</p>
           )}
         </div>
-        <p className="max-w-[18rem] text-sm text-snow/80">Blend in with the Elves. Listen closely to their clues.</p>
+        <p className="max-w-[18rem] text-sm text-snow/80">Blend in. Listen closely to everyone's clues.</p>
       </>
     );
   }

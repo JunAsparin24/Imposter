@@ -1,5 +1,5 @@
 /**
- * Shared types for IMPOSTER: Christmas Edition.
+ * Shared types for IMPOSTER.
  *
  * Terminology used everywhere in the codebase:
  *  - ELF     = innocent player (knows the secret word)          -> green
@@ -55,7 +55,7 @@ export interface GameSettings {
   votingSeconds: number;
   finalGuessEnabled: boolean;
   soundEnabled: boolean;
-  /** Grinches all get the same hint word for the secret word. */
+  /** Imposters all get the same hint word for the secret word. */
   grinchHint: boolean;
   allowSkipVote: boolean;
   /** Automatically move on when discussion / result timers expire. */
@@ -221,6 +221,8 @@ export interface PublicMatchState {
   spokenIds: string[];
   vote: PublicVoteSession | null;
   lastResult: VoteResult | null;
+  /** False while the voted-out player's role is hidden, waiting for the host to reveal it. */
+  resultRevealed: boolean;
   finalGuess: PublicFinalGuess | null;
   lastGuess: LastGuessInfo | null;
   /** Only present once the match is over. */
@@ -245,7 +247,7 @@ export interface PublicRoomState {
   history: MatchSummary[];
   /** Host has locked the room: nobody new can join. */
   locked: boolean;
-  /** The host's custom word pack (never the words themselves - those would help Grinches). */
+  /** The host's custom word pack (never the words themselves - those would help Imposters). */
   customPack: { name: string; count: number } | null;
 }
 
@@ -255,17 +257,17 @@ export interface PrivatePlayerState {
   role: Role | 'SPECTATOR' | null;
   /** Only ever set for ELF players. */
   word: string | null;
-  /** Elves only. */
+  /** Innocents only. */
   category: CategoryId | null;
   categoryName: string | null;
-  /** Grinches only (when the hint setting is on): the same hint word every Grinch gets. */
+  /** Imposters only (when the hint setting is on): the same hint word every Imposter gets. */
   hint: string | null;
-  /** Grinch only: the other Grinches this match. */
+  /** Imposter only: the other Imposters this match. */
   teammates: { id: string; name: string; avatar: string }[];
   submittedBallot: { picks: string[]; skip: boolean } | null;
-  /** I'm the caught Grinch who gets to say a final guess out loud. */
+  /** I'm the caught Imposter who gets to say a final guess out loud. */
   isGuessing: boolean;
-  /** I'm an Elf (I know the word), so I can confirm whether the spoken guess was right. */
+  /** I'm an Innocent (I know the word), so I can confirm whether the spoken guess was right. */
   canJudge: boolean;
   /** Host only: the room's custom word pack, one entry per line ("Word | hint"). */
   customPackLines: string[] | null;
@@ -308,6 +310,7 @@ export type ErrorCode =
   | 'ALREADY_SUBMITTED'
   | 'RATE_LIMITED'
   | 'ROOM_LOCKED'
+  | 'AVATAR_TAKEN'
   | 'INTERNAL';
 
 export interface GameErrorPayload {
@@ -322,6 +325,8 @@ export interface RoomCheckResult {
   exists: boolean;
   joinable: boolean;
   reason: ErrorCode | null;
+  /** Avatars already used by someone in the room (each avatar can only be used once). */
+  takenAvatars: string[];
 }
 
 export type DiscussionAction = 'pause' | 'resume' | 'extend';
@@ -346,6 +351,7 @@ export interface ClientToServerEvents {
   'game:startVoting': (p: { phaseSeq: number }, ack: AckFn) => void;
   'game:submitVote': (p: { voteId: string; picks: string[]; skip: boolean }, ack: AckFn) => void;
   'game:closeVoting': (p: { phaseSeq: number }, ack: AckFn) => void;
+  'game:revealResult': (p: { phaseSeq: number }, ack: AckFn) => void;
   'game:continue': (p: { phaseSeq: number }, ack: AckFn) => void;
   'game:judgeGuess': (p: { correct: boolean; phaseSeq: number }, ack: AckFn) => void;
   'game:returnToLobby': (p: Record<string, never>, ack: AckFn) => void;

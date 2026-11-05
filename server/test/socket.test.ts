@@ -11,6 +11,7 @@ import type {
   SessionInfo,
   StateEnvelope,
 } from '@imposter/shared';
+import { AVATARS } from '@imposter/shared';
 import { createGameServer, type GameIo } from '../src/net/gameServer';
 import { InMemoryRoomStore } from '../src/net/roomStore';
 import { words } from './helpers';
@@ -88,7 +89,7 @@ async function setupRoom(n: number) {
   const sessions: SessionInfo[] = [];
   for (let i = 0; i < n; i++) {
     const c = await connect();
-    sessions.push(await ok<SessionInfo>(c, 'room:join', { code: display.code, name: i === 0 ? 'Host' : `P${i}`, avatar: '🦌' }));
+    sessions.push(await ok<SessionInfo>(c, 'room:join', { code: display.code, name: i === 0 ? 'Host' : `P${i}`, avatar: AVATARS[i] }));
     players.push(c);
   }
   await until(() => players.every((p) => p.latest?.room.players.length === n));
@@ -98,7 +99,7 @@ async function setupRoom(n: number) {
 describe('socket integration', () => {
   it('synchronises joins and keeps roles private over the wire', async () => {
     const { host, players, code } = await setupRoom(5);
-    expect(code).toMatch(/^[A-Z0-9]{6}$/);
+    expect(code).toMatch(/^[A-Z0-9]{4}$/);
     await ok(host, 'room:updateSettings', { settings: { grinchCount: 2 } });
     await ok(host, 'game:start');
     await until(() => players.every((p) => p.latest?.room.phase === 'ROLE_REVEAL' && p.latest.me.role !== null));
@@ -112,7 +113,7 @@ describe('socket integration', () => {
     for (const g of grinchClients) {
       expect(g.latest!.me.word).toBeNull();
       expect(g.latest!.me.teammates.map((t) => t.id)).toEqual(grinchIds.filter((id) => id !== g.latest!.me.playerId));
-      // The secret word never reached a Grinch's browser in ANY message.
+      // The secret word never reached an Imposter's browser in ANY message.
       for (const msg of g.raw) expect(msg).not.toContain(word);
     }
     for (const p of players.filter((x) => x.latest!.me.role === 'ELF')) {
@@ -142,7 +143,7 @@ describe('socket integration', () => {
     const bad = await emit(c, 'room:join', { code: 12345, name: '', avatar: 'nope' });
     expect(bad.ok).toBe(false);
     if (!bad.ok) expect(bad.error.code).toBe('INVALID_INPUT');
-    const missing = await emit(c, 'room:join', { code: 'ZZZZZZ', name: 'Me', avatar: '🎅' });
+    const missing = await emit(c, 'room:join', { code: 'ZZZZ', name: 'Me', avatar: 'gentleman' });
     expect(!missing.ok && missing.error.code).toBe('ROOM_NOT_FOUND');
     const notInRoom = await emit(c, 'game:submitVote', { voteId: 'x', picks: [], skip: true });
     expect(!notInRoom.ok && notInRoom.error.code).toBe('NOT_IN_ROOM');
@@ -150,8 +151,8 @@ describe('socket integration', () => {
     (c.socket as unknown as { emit: (...a: unknown[]) => void }).emit('room:create', 'garbage');
 
     const { code } = await setupRoom(3);
-    await ok(c, 'room:join', { code, name: 'Dup', avatar: '🎅' });
-    const again = await emit(c, 'room:join', { code, name: 'Dup', avatar: '🎅' });
+    await ok(c, 'room:join', { code, name: 'Dup', avatar: 'baker' });
+    const again = await emit(c, 'room:join', { code, name: 'Dup', avatar: 'gentleman' });
     expect(!again.ok && again.error.code).toBe('ALREADY_IN_ROOM');
   });
 
@@ -161,7 +162,7 @@ describe('socket integration', () => {
     const late = await connect();
     const check = await ok<{ joinable: boolean; reason: string }>(late, 'room:check', { code });
     expect(check.joinable).toBe(false);
-    const res = await emit(late, 'room:join', { code, name: 'Late', avatar: '🎅' });
+    const res = await emit(late, 'room:join', { code, name: 'Late', avatar: 'gentleman' });
     expect(!res.ok && res.error.code).toBe('GAME_IN_PROGRESS');
   });
 
@@ -249,14 +250,18 @@ describe('socket integration', () => {
     expect(dupVote.ok).toBe(false);
 
     await until(() => host.latest!.room.phase === 'VOTE_RESULTS');
+    expect(host.latest!.room.match!.resultRevealed).toBe(false);
+    expect(host.latest!.room.match!.lastResult!.roles).toEqual({});
+    await ok(host, 'game:revealResult', { phaseSeq: host.latest!.room.phaseSeq });
+    await until(() => host.latest!.room.match!.resultRevealed);
     expect(host.latest!.room.match!.lastResult!.roles[grinchId]).toBe('GRINCH');
     await ok(host, 'game:continue', { phaseSeq: host.latest!.room.phaseSeq });
     await until(() => grinch.latest!.me.isGuessing);
-    // The Grinch says the guess out loud. They can't confirm their own guess…
+    // The Imposter says the guess out loud. They can't confirm their own guess…
     const seq = grinch.latest!.room.phaseSeq;
     const forged = await emit(grinch, 'game:judgeGuess', { correct: true, phaseSeq: seq });
     expect(forged.ok).toBe(false);
-    // …an Elf (who knows the word) taps "Correct".
+    // …an Innocent (who knows the word) taps "Correct".
     const judge = players.find((p) => p.latest!.me.canJudge)!;
     await ok(judge, 'game:judgeGuess', { correct: true, phaseSeq: seq });
     await until(() => host.latest!.room.phase === 'ROUND_RESULTS');

@@ -51,7 +51,7 @@ export function RoleRevealScreen() {
         sub={
           <>
             <b className="text-grinch">
-              {m.grinchCount} Grinch{m.grinchCount === 1 ? '' : 'es'}
+              {m.grinchCount} Imposter{m.grinchCount === 1 ? '' : 'es'}
             </b>{' '}
             hiding among {participants.length} players
           </>
@@ -243,7 +243,7 @@ export function DiscussionScreen() {
   return (
     <div className="flex flex-1 flex-col gap-5">
       <EliminatedNotice />
-      <PhaseTitle kicker={`Round ${m.round}`} title="Discuss!" sub="Who's the Grinch? Talk it out." tone="gold" />
+      <PhaseTitle kicker={`Round ${m.round}`} title="Discuss!" sub="Who's the Imposter? Talk it out." tone="gold" />
 
       <div className="flex justify-center">
         {hasTimer ? (
@@ -272,7 +272,7 @@ export function DiscussionScreen() {
         </ul>
         {out.length > 0 && (
           <p className="mt-3 text-center text-xs text-night-400">
-            Out: {out.map((p) => `${p.name} (${p.revealedRole === 'GRINCH' ? 'Grinch' : p.revealedRole === 'ELF' ? 'Elf' : 'left'})`).join(', ')}
+            Out: {out.map((p) => `${p.name} (${p.revealedRole === 'GRINCH' ? 'Imposter' : p.revealedRole === 'ELF' ? 'Innocent' : 'left'})`).join(', ')}
           </p>
         )}
       </section>

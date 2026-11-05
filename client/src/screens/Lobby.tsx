@@ -1,6 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, Copy, Crown, GraduationCap, Link2, Play, QrCode, Settings2, Share2, UserX } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
+import { Check, Copy, Crown, GraduationCap, Link2, Play, Settings2, Share2, UserX } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { MAX_PLAYERS, MIN_PLAYERS, maxGrinchCount, resolveGrinchCount } from '@imposter/shared';
 import { PlayerRow } from '../components/RoomChrome';
@@ -37,7 +36,6 @@ function joinBase(lan: string | null): { base: string; reach: 'online' | 'wifi' 
 
 export function InviteCard() {
   const { room, toast, isHost, send } = useRoom();
-  const [showQr, setShowQr] = useState(true);
   const lan = useLanAddress();
   const { base, reach } = joinBase(lan);
   const link = `${base}/?join=${room.code}`;
@@ -49,18 +47,20 @@ export function InviteCard() {
   const canShare = typeof navigator !== 'undefined' && !!navigator.share;
 
   return (
-    <div className="card p-4">
-      <p className="label text-center">Room code</p>
+    <div className="card p-5 text-center">
+      <p className="label">Go to</p>
+      <p className="mt-1 break-all text-lg font-bold text-snow">{base.replace(/^https?:\/\//, '')}</p>
+      <p className="label mt-4">and enter code</p>
       <button
         onClick={() => copy(room.code, 'Room code')}
-        className="mx-auto mt-1 block rounded-2xl px-3 font-display text-[clamp(2.4rem,13vw,3.5rem)] tracking-[0.2em] text-gold drop-shadow-[0_0_18px_rgba(245,196,81,0.35)]"
+        className="mx-auto mt-1 block rounded-2xl px-3 font-display text-[clamp(3.5rem,20vw,5.5rem)] leading-none tracking-[0.18em] text-gold drop-shadow-[0_0_18px_rgba(245,196,81,0.35)] lg:text-[7rem]"
         aria-label={`Room code ${room.code}. Tap to copy.`}
       >
         {room.code}
       </button>
-      <div className="mt-3 grid grid-cols-3 gap-2">
+      <div className="mt-4 grid grid-cols-2 gap-2">
         <Button size="sm" variant="outline" icon={<Copy size={15} />} onClick={() => copy(room.code, 'Room code')}>
-          Code
+          Copy code
         </Button>
         <Button
           size="sm"
@@ -68,42 +68,16 @@ export function InviteCard() {
           icon={canShare ? <Share2 size={15} /> : <Link2 size={15} />}
           onClick={() =>
             canShare
-              ? navigator.share({ title: 'IMPOSTER: Christmas Edition', text: `Join my game! Code ${room.code}`, url: link }).catch(() => {})
+              ? navigator.share({ title: 'IMPOSTER', text: `Join my game! Code ${room.code}`, url: link }).catch(() => {})
               : copy(link, 'Invite link')
           }
         >
-          {canShare ? 'Share' : 'Link'}
-        </Button>
-        <Button size="sm" variant={showQr ? 'primary' : 'outline'} icon={<QrCode size={15} />} onClick={() => setShowQr((v) => !v)}>
-          QR
+          {canShare ? 'Share link' : 'Copy link'}
         </Button>
       </div>
-      <AnimatePresence>
-        {showQr && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="mx-auto mt-4 w-fit rounded-2xl bg-white p-3">
-              <QRCodeSVG value={link} size={176} bgColor="#ffffff" fgColor="#07090c" level="M" className="h-44 w-44 lg:h-64 lg:w-64" />
-            </div>
-            <p className="mt-2 break-all text-center text-xs text-night-300">{link}</p>
-            <p
-              className={`mt-1 text-center text-xs font-semibold ${
-                reach === 'online' ? 'text-elf-light' : 'text-gold'
-              }`}
-            >
-              {reach === 'online'
-                ? 'Works on any Wi-Fi or mobile data'
-                : reach === 'wifi'
-                  ? 'Local test: phones need to be on the same Wi-Fi as this computer'
-                  : ''}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {reach === 'wifi' && (
+        <p className="mt-3 text-xs font-semibold text-gold">Local test: phones need to be on the same Wi-Fi as this computer.</p>
+      )}
       {isHost ? (
         <div className="mt-3 border-t border-white/[0.06] pt-1">
           <Toggle
@@ -134,12 +108,12 @@ export function Lobby() {
     connected.length < MIN_PLAYERS
       ? `Need at least ${MIN_PLAYERS} players (${connected.length}/${MIN_PLAYERS})`
       : tooManyGrinches
-        ? `Too many Grinches for ${connected.length} players`
+        ? `Too many Imposters for ${connected.length} players`
         : null;
 
   return (
     <div className="flex flex-1 flex-col gap-5">
-      {/* Laptop: invite/QR on the left (easy for the room to scan), players + settings on the right. */}
+      {/* Laptop: join info on the left, players + settings on the right. */}
       <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:items-start">
       <div className="lg:sticky lg:top-20">
         <InviteCard />

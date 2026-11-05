@@ -1,7 +1,7 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Check, Lock, SkipForward } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { TIMING, type PublicPlayer, type VoteResult } from '@imposter/shared';
+import { useEffect, useRef, useState } from 'react';
+import { TIMING, type PublicPlayer, type Role, type VoteResult } from '@imposter/shared';
 import { Avatar, AvatarImg, TimerRing } from '../components/decor';
 import { ActionBar, Button, ConfirmButton } from '../components/ui';
 import { play, vibrate } from '../lib/sound';
@@ -68,8 +68,8 @@ function VotingBallot() {
           v.isRevote
             ? 'It was a tie. Vote again, tied players only.'
             : need > 1
-              ? `Pick ${need} players you think are Grinches.`
-              : 'Who do you think is a Grinch?'
+              ? `Pick ${need} players you think are Imposters.`
+              : 'Who do you think is an Imposter?'
         }
       />
 
@@ -187,58 +187,53 @@ export function VoteResultsScreen() {
   const { room, isHost, send, playerById, clockOffset } = useRoom();
   const m = room.match!;
   const r = m.lastResult!;
-  const [revealed, setRevealed] = useState(false);
+  const isOut = r.kind === 'ELIMINATED' || r.kind === 'ACCUSED';
+  const revealed = m.resultRevealed;
   const left = useCountdown(room.deadline, clockOffset);
+  const host = room.players.find((p) => p.isHost);
+  const [busy, setBusy] = useState(false);
+  const wasRevealed = useRef(revealed);
 
+  // Drumroll while we wait on a name; the matching sting plays the moment the role is revealed.
   useEffect(() => {
-    play('drumroll');
-    const t = setTimeout(() => {
-      setRevealed(true);
-      const roles = Object.values(r.roles);
-      if (roles.includes('GRINCH')) play('grinch');
-      else if (roles.includes('ELF')) play('elf');
-    }, 1600);
-    return () => clearTimeout(t);
+    if (isOut && !revealed) play('drumroll');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  useEffect(() => {
+    if (revealed && !wasRevealed.current && isOut) {
+      const roles = Object.values(r.roles);
+      if (roles.includes('GRINCH')) play('grinch');
+      else play('elf');
+    }
+    wasRevealed.current = revealed;
+  }, [revealed, isOut, r.roles]);
 
-  const pendingFinalGuess =
-    r.kind === 'ELIMINATED' && r.roles[r.playerIds[0]] === 'GRINCH' && m.finalGuessEnabled;
-  const continueLabel =
-    r.kind === 'TIE' ? 'Start the revote' : pendingFinalGuess ? 'Final guess' : 'Continue';
+  const pendingFinalGuess = r.kind === 'ELIMINATED' && r.roles[r.playerIds[0]] === 'GRINCH' && m.finalGuessEnabled;
+  const continueLabel = r.kind === 'TIE' ? 'Start the revote' : pendingFinalGuess ? 'Final guess' : 'Continue';
 
   return (
     <div className="flex flex-1 flex-col gap-5">
-      <PhaseTitle kicker={r.isRevote ? 'Revote result' : `Round ${m.round} vote`} title="The group has decided…" />
-      <div className="flex min-h-[260px] items-center justify-center">
-        <AnimatePresence mode="wait">
-          {!revealed ? (
-            <motion.div key="wait" exit={{ opacity: 0, scale: 0.8 }} className="flex gap-2" aria-label="Revealing">
-              {[0, 1, 2].map((i) => (
-                <motion.span
-                  key={i}
-                  className="h-4 w-4 rounded-full bg-gold"
-                  animate={{ y: [0, -14, 0], opacity: [0.4, 1, 0.4] }}
-                  transition={{ repeat: Infinity, duration: 0.8, delay: i * 0.15 }}
-                />
-              ))}
-            </motion.div>
-          ) : (
-            <motion.div
-              key="result"
-              initial={{ opacity: 0, scale: 0.7 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: 'spring', damping: 14, stiffness: 180 }}
-              className="w-full"
-            >
-              <ResultBody result={r} playerById={playerById} pendingFinalGuess={pendingFinalGuess} />
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <PhaseTitle
+        kicker={r.isRevote ? 'Revote result' : `Round ${m.round} vote`}
+        title={isOut ? 'The group voted out…' : 'The votes are in'}
+      />
+      <div className="flex min-h-[280px] items-center justify-center">
+        {isOut ? (
+          <div className="w-full space-y-4">
+            {r.playerIds.map((id) => (
+              <OutCard key={id} player={playerById(id)} role={revealed ? r.roles[id] ?? null : null} />
+            ))}
+            {revealed && pendingFinalGuess && (
+              <p className="text-center text-sm font-semibold text-gold">…but they get one last chance to say the secret word!</p>
+            )}
+          </div>
+        ) : (
+          <NoOneOut result={r} playerById={playerById} />
+        )}
       </div>
 
       {revealed && r.tally.some((t) => t.votes > 0) && (
-        <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="card p-4">
+        <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="card p-4">
           <p className="label mb-3">Vote count</p>
           <ul className="space-y-2">
             {r.tally
@@ -248,13 +243,15 @@ export function VoteResultsScreen() {
                 const max = Math.max(...r.tally.map((x) => x.votes), 1);
                 return (
                   <li key={t.targetId} className="flex items-center gap-3 text-sm">
-                    <span className="w-24 shrink-0 truncate font-semibold">{t.targetId === 'SKIP' ? '⏭️ Skip' : <><AvatarImg id={p?.avatar ?? ''} size={18} /> {p?.name}</>}</span>
+                    <span className="flex w-28 shrink-0 items-center gap-1.5 truncate font-semibold">
+                      {t.targetId === 'SKIP' ? 'Skip' : <><AvatarImg id={p?.avatar ?? ''} size={18} /> {p?.name}</>}
+                    </span>
                     <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
                       <motion.span
                         className="block h-full rounded-full bg-gold"
                         initial={{ width: 0 }}
                         animate={{ width: `${(t.votes / max) * 100}%` }}
-                        transition={{ duration: 0.6, delay: 0.5 }}
+                        transition={{ duration: 0.6, delay: 0.7 }}
                       />
                     </span>
                     <span className="w-6 text-right font-display tabular-nums">{t.votes}</span>
@@ -266,10 +263,28 @@ export function VoteResultsScreen() {
       )}
 
       <ActionBar>
-        {isHost ? (
-          <Button block size="lg" variant="gold" disabled={!revealed} onClick={() => void send('game:continue', { phaseSeq: room.phaseSeq })}>
+        {!revealed ? (
+          isHost ? (
+            <Button
+              block
+              size="lg"
+              variant="gold"
+              loading={busy}
+              onClick={async () => {
+                setBusy(true);
+                await send('game:revealResult', { phaseSeq: room.phaseSeq });
+                setBusy(false);
+              }}
+            >
+              Reveal their role
+            </Button>
+          ) : (
+            <p className="py-2 text-center text-sm text-night-300">Waiting for {host?.name ?? 'the host'} to reveal their role…</p>
+          )
+        ) : isHost ? (
+          <Button block size="lg" variant="gold" onClick={() => void send('game:continue', { phaseSeq: room.phaseSeq })}>
             {continueLabel}
-            {left !== null && revealed ? ` (${formatSeconds(left)})` : ''}
+            {left !== null ? ` (${formatSeconds(left)})` : ''}
           </Button>
         ) : (
           <p className="py-2 text-center text-sm text-night-300">
@@ -281,61 +296,68 @@ export function VoteResultsScreen() {
   );
 }
 
-function ResultBody({
-  result: r,
-  playerById,
-  pendingFinalGuess,
-}: {
-  result: VoteResult;
-  playerById: (id: string) => PublicPlayer | undefined;
-  pendingFinalGuess: boolean;
-}) {
-  if (r.kind === 'ELIMINATED' || r.kind === 'ACCUSED') {
-    return (
-      <div className="space-y-4">
-        {r.playerIds.map((id) => {
-          const p = playerById(id);
-          const grinch = r.roles[id] === 'GRINCH';
-          return (
-            <motion.div
-              key={id}
-              // A Grinch reveal gets a little "caught!" shake; an Elf reveal a gentle bounce.
-              animate={grinch ? { x: [0, -10, 10, -7, 7, -3, 0] } : { y: [0, -8, 0] }}
-              transition={{ duration: grinch ? 0.55 : 0.45, delay: 0.25 }}
-              className={`flex flex-col items-center gap-2 rounded-[28px] border-2 px-4 py-6 text-center ${
-                grinch ? 'border-grinch/60 bg-grinch/10 shadow-glow-red' : 'border-elf/60 bg-elf/10 shadow-glow-green'
-              }`}
-            >
-              <Avatar emoji={p?.avatar ?? '❓'} size={80} ring={grinch ? 'grinch' : 'elf'} />
-              <h2 className="heading break-all text-[clamp(1.8rem,9vw,2.6rem)]">{p?.name ?? 'Someone'}</h2>
-              <motion.p
-                initial={{ opacity: 0, scale: 0.6 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.15, type: 'spring', damping: 10 }}
-                className={`heading text-[clamp(1.3rem,6.5vw,1.9rem)] ${grinch ? 'text-grinch' : 'text-elf'}`}
-              >
-                {grinch ? 'was a Grinch!' : 'was an Elf.'}
-              </motion.p>
-            </motion.div>
-          );
-        })}
-        {pendingFinalGuess && <p className="text-center text-sm font-semibold text-gold">…but they get one last chance to say the secret word!</p>}
-      </div>
-    );
-  }
+/** The voted-out player: just their name at first, then the card flips to show the role. */
+function OutCard({ player, role }: { player: PublicPlayer | undefined; role: Role | null }) {
+  const imposter = role === 'GRINCH';
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.6 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: 'spring', damping: 13, stiffness: 190 }}
+      style={{ perspective: 900 }}
+    >
+      <motion.div
+        key={role ?? 'hidden'}
+        initial={role ? { rotateY: 90 } : false}
+        animate={role ? { rotateY: 0, x: imposter ? [0, -10, 10, -6, 6, 0] : 0 } : {}}
+        transition={{ rotateY: { duration: 0.35 }, x: { delay: 0.35, duration: 0.5 } }}
+        className={`flex flex-col items-center gap-2 rounded-[28px] border-2 px-4 py-7 text-center ${
+          !role
+            ? 'border-white/15 bg-night-800'
+            : imposter
+              ? 'border-grinch/60 bg-grinch/10 shadow-glow-red'
+              : 'border-elf/60 bg-elf/10 shadow-glow-green'
+        }`}
+      >
+        <Avatar emoji={player?.avatar ?? ''} size={88} ring={!role ? 'gold' : imposter ? 'grinch' : 'elf'} />
+        <h2 className="heading break-all text-[clamp(2rem,10vw,3rem)]">{player?.name ?? 'Someone'}</h2>
+        {role ? (
+          <motion.p
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3, type: 'spring', damping: 9 }}
+            className={`heading text-[clamp(1.4rem,7vw,2rem)] ${imposter ? 'text-grinch' : 'text-elf'}`}
+          >
+            {imposter ? 'was an Imposter!' : 'was innocent.'}
+          </motion.p>
+        ) : (
+          <motion.p
+            className="heading text-[clamp(1.4rem,7vw,2rem)] text-night-400"
+            animate={{ opacity: [0.4, 1, 0.4] }}
+            transition={{ repeat: Infinity, duration: 1.4 }}
+          >
+            ???
+          </motion.p>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function NoOneOut({ result: r, playerById }: { result: VoteResult; playerById: (id: string) => PublicPlayer | undefined }) {
   const names = r.playerIds.map((id) => playerById(id)?.name ?? '?').join(' vs ');
   const copy: Record<string, { title: string; sub: string }> = {
     TIE: { title: "It's a tie!", sub: `${names}. Time for a revote.` },
-    NO_DECISION: { title: 'Tied again!', sub: 'Nobody is eliminated. On to the next round of clues.' },
-    SKIPPED: { title: 'Skipped!', sub: 'The group chose to skip. Nobody is eliminated.' },
-    NO_VOTES: { title: 'No votes', sub: 'Nobody voted, so nobody is eliminated.' },
+    NO_DECISION: { title: 'Tied again!', sub: 'Nobody is out. On to the next round of clues.' },
+    SKIPPED: { title: 'Skipped!', sub: 'The group chose to skip. Nobody is out.' },
+    NO_VOTES: { title: 'No votes', sub: 'Nobody voted, so nobody is out.' },
   };
   const c = copy[r.kind];
   return (
-    <div className="card px-4 py-8 text-center">
+    <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="card w-full px-4 py-8 text-center">
       <h2 className="heading text-4xl text-gold">{c.title}</h2>
       <p className="mt-2 text-night-300">{c.sub}</p>
-    </div>
+    </motion.div>
   );
 }
 
@@ -363,42 +385,42 @@ export function FinalGuessScreen() {
         {left !== null && <TimerRing msLeft={left} totalMs={TIMING.FINAL_GUESS_MS} size={104} label={formatSeconds(left)} />}
       </div>
       {priv.isGuessing ? (
-        // The caught Grinch: say it out loud, no typing.
+        // The caught Imposter: say it out loud, no typing.
         <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
           <PhaseTitle kicker="You've been caught" title="One last chance" tone="grinch" sub="What was the secret word?" />
           <p className="heading max-w-xs text-2xl text-snow">Say your guess out loud!</p>
           <p className="max-w-xs text-sm text-night-300">
-            {plural ? 'Agree on ONE guess together. ' : ''}One try only. An Elf will tap whether you got it right.
+            {plural ? 'Agree on ONE guess together. ' : ''}One try only. An Innocent will tap whether you got it right.
           </p>
           {priv.hint && (
             <p className="rounded-2xl bg-gold/10 px-4 py-2 text-sm font-semibold text-gold">Your hint was: {priv.hint}</p>
           )}
         </div>
       ) : priv.canJudge ? (
-        // Elves know the word, so they confirm the spoken guess.
+        // Innocents know the word, so they confirm the spoken guess.
         <div className="flex flex-1 flex-col gap-5">
           <PhaseTitle kicker="Final guess" title="Listen up!" tone="grinch" sub={`${guessers} ${plural ? 'are' : 'is'} saying one final guess out loud.`} />
           <div className="card p-5 text-center">
             <p className="label">The secret word is</p>
             <p className="heading mt-1 break-words text-3xl text-gold">{priv.word}</p>
           </div>
-          <p className="text-center text-sm text-night-300">Did they say it? The first Elf to answer decides.</p>
+          <p className="text-center text-sm text-night-300">Did they say it? The first Innocent to answer decides.</p>
           <ActionBar>
             <div className="grid grid-cols-2 gap-2.5">
               <Button size="lg" variant="elf" loading={busy} onClick={() => void judge(false)}>
                 Wrong
               </Button>
-              <ConfirmButton size="lg" variant="grinch" disabled={busy} confirmLabel="Sure? Grinches win" onConfirm={() => void judge(true)}>
+              <ConfirmButton size="lg" variant="grinch" disabled={busy} confirmLabel="Sure? Imposters win" onConfirm={() => void judge(true)}>
                 They got it
               </ConfirmButton>
             </div>
           </ActionBar>
         </div>
       ) : (
-        // Other Grinches, spectators and the room screen.
+        // Other Imposters, spectators and the room screen.
         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
           <PhaseTitle kicker="Final guess" title="One last chance…" tone="grinch" sub={`${guessers}, say your guess for the secret word out loud!`} />
-          <p className="text-sm text-night-300">If they get it right, the Grinches steal Christmas. The Elves will confirm on their phones.</p>
+          <p className="text-sm text-night-300">If they get it right, the Imposters win. The Innocents confirm it on their phones.</p>
         </div>
       )}
     </div>

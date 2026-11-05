@@ -224,9 +224,9 @@ export function createGameServer(opts: GameServerOptions) {
       schemas.check,
       ({ code }): RoomCheckResult => {
         const room = store.get(code);
-        if (!room) return { exists: false, joinable: false, reason: 'ROOM_NOT_FOUND' };
+        if (!room) return { exists: false, joinable: false, reason: 'ROOM_NOT_FOUND', takenAvatars: [] };
         const blocker = room.joinBlocker();
-        return { exists: true, joinable: !blocker, reason: blocker };
+        return { exists: true, joinable: !blocker, reason: blocker, takenAvatars: room.takenAvatars() };
       },
       { joinLimited: true },
     );
@@ -314,6 +314,7 @@ export function createGameServer(opts: GameServerOptions) {
     handle('game:submitVote', schemas.vote, ({ voteId, picks, skip }) =>
       act((room, id) => room.submitVote(id, voteId, picks, skip)),
     );
+    handle('game:revealResult', schemas.phaseSeq, ({ phaseSeq }) => act((room, id) => room.revealResult(id, phaseSeq)));
     handle('game:closeVoting', schemas.phaseSeq, ({ phaseSeq }) => act((room, id) => room.closeVoting(id, phaseSeq)));
     handle('game:continue', schemas.phaseSeq, ({ phaseSeq }) =>
       act((room, id) => room.continueFromResults(id, phaseSeq)),

@@ -262,7 +262,7 @@ export function PlayerRow({
           {player.status === 'LEFT' && <span>Left the game</span>}
           {player.revealedRole && (
             <span className={player.revealedRole === 'GRINCH' ? 'font-bold text-grinch' : 'font-bold text-elf'}>
-              {player.revealedRole === 'GRINCH' ? 'Grinch' : 'Elf'}
+              {player.revealedRole === 'GRINCH' ? 'Imposter' : 'Innocent'}
             </span>
           )}
           {sub}

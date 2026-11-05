@@ -45,10 +45,19 @@ describe('word bank', () => {
 describe('room setup', () => {
   it('gives duplicate names a suffix but unique ids', () => {
     const t = makeRoom(1);
-    const a = t.room.addPlayer('Alex', '🎅');
-    const b = t.room.addPlayer('alex', '🎅');
+    const a = t.room.addPlayer('Alex', 'baker');
+    const b = t.room.addPlayer('alex', 'butler');
     expect(a.id).not.toBe(b.id);
     expect(b.name).toBe('alex 2');
+  });
+
+  it('each avatar can only be used by one player; it frees up when they leave', () => {
+    const t = makeRoom(0);
+    const a = t.room.addPlayer('Alex', 'baker');
+    expectError(() => t.room.addPlayer('Jordan', 'baker'), 'AVATAR_TAKEN');
+    expect(t.room.takenAvatars()).toEqual(['baker']);
+    t.room.removePlayer(a.id);
+    t.room.addPlayer('Jordan', 'baker');
   });
 
   it('only the host can start, needs 3 players, and cannot start twice', () => {
@@ -60,7 +69,7 @@ describe('room setup', () => {
     expectError(() => t.room.startMatch(t.host), 'GAME_IN_PROGRESS');
   });
 
-  it('rejects Grinches making up half the room', () => {
+  it('rejects Imposters making up half the room', () => {
     const t = makeRoom(4, { grinchCount: 2 });
     expectError(() => t.room.startMatch(t.host), 'INVALID_SETTINGS');
     expect(t.room.phase).toBe('LOBBY');
@@ -69,7 +78,7 @@ describe('room setup', () => {
   it('blocks joining while a match is in progress', () => {
     const t = makeRoom(3);
     t.room.startMatch(t.host);
-    expectError(() => t.room.addPlayer('Late', '🎅'), 'GAME_IN_PROGRESS');
+    expectError(() => t.room.addPlayer('Late', 'gentleman'), 'GAME_IN_PROGRESS');
   });
 
   it('settings changed mid-match only apply to the next match', () => {
@@ -82,7 +91,7 @@ describe('room setup', () => {
 });
 
 describe('role privacy', () => {
-  it('Grinches never get the word but always see every teammate', () => {
+  it('Imposters never get the word but always see every teammate', () => {
     const t = makeRoom(10, { grinchCount: 3 });
     t.room.startMatch(t.host);
     const g = grinches(t);
@@ -104,13 +113,13 @@ describe('role privacy', () => {
     }
   });
 
-  it('a lone Grinch has no teammates', () => {
+  it('a lone Imposter has no teammates', () => {
     const t = makeRoom(4);
     t.room.startMatch(t.host);
     expect(t.room.privateState(grinches(t)[0]).teammates).toEqual([]);
   });
 
-  it('every Grinch gets the same hint word; Elves and the public never see it', () => {
+  it('every Imposter gets the same hint word; Innocents and the public never see it', () => {
     const t = makeRoom(10, { grinchCount: 3, grinchHint: true });
     t.room.startMatch(t.host);
     const hint = t.room.match!.word.hint;
@@ -298,6 +307,11 @@ describe('voting', () => {
     toVoting(t);
     const elf = elves(t)[0];
     everyoneVotes(t, elf);
+    // Hidden until the host taps Reveal, then public.
+    expect(t.room.publicState().players.find((p) => p.id === elf)!.revealedRole).toBeNull();
+    expectError(() => t.room.continueFromResults(t.host, t.room.phaseSeq), 'NOT_ALLOWED');
+    expectError(() => t.room.revealResult(t.ids.find((x) => x !== t.host)!, t.room.phaseSeq), 'NOT_HOST');
+    t.room.revealResult(t.host, t.room.phaseSeq);
     expect(t.room.publicState().players.find((p) => p.id === elf)!.revealedRole).toBe('ELF');
     continueResults(t);
     expect(t.room.publicState().match!.speakingOrder).not.toContain(elf);
@@ -309,12 +323,15 @@ describe('voting', () => {
 });
 
 describe('win conditions and final guess', () => {
-  it('catching the only Grinch → final guess; wrong guess → Elves win and score once', () => {
+  it('catching the only Imposter → final guess; wrong guess → Innocents win and score once', () => {
     const t = makeRoom(4, { finalGuessEnabled: true });
     startToClues(t);
     toVoting(t);
     const [g] = grinches(t);
     everyoneVotes(t, g);
+    expect(t.room.publicState().match!.lastResult!.roles).toEqual({});
+    expect(JSON.stringify(t.room.publicState())).not.toContain('GRINCH');
+    t.room.revealResult(t.host, t.room.phaseSeq);
     const res = t.room.publicState().match!.lastResult!;
     expect(res.kind).toBe('ELIMINATED');
     expect(res.roles[g]).toBe('GRINCH');
@@ -325,15 +342,15 @@ describe('win conditions and final guess', () => {
     const elf = elves(t)[0];
     expect(t.room.privateState(elf).canJudge).toBe(true);
     const seq0 = t.room.phaseSeq;
-    // The Grinch said their guess out loud; only an Elf may judge it.
+    // The Imposter said their guess out loud; only an Innocent may judge it.
     expectError(() => t.room.judgeGuess(g, seq0, true), 'NOT_ALLOWED');
     t.room.judgeGuess(elf, seq0, false);
-    // A second Elf tapping at the same moment doesn't count twice.
+    // A second Innocent tapping at the same moment doesn't count twice.
     expectError(() => t.room.judgeGuess(elves(t)[1], seq0, true), 'WRONG_PHASE');
     const pub = t.room.publicState();
     expect(pub.phase).toBe('ROUND_RESULTS');
     expect(pub.match!.results!.winner).toBe('ELVES');
-    // Each elf: +2 win, +1 for voting the Grinch.
+    // Each elf: +2 win, +1 for voting the Imposter.
     for (const id of elves(t)) expect(pub.players.find((p) => p.id === id)!.score).toBe(SCORING.ELF_WIN + SCORING.CORRECT_VOTE);
     expect(pub.players.find((p) => p.id === g)!.score).toBe(0);
     // Continuing twice with the same phaseSeq is rejected: no double phase advance.
@@ -343,7 +360,7 @@ describe('win conditions and final guess', () => {
     expect(t.room.phase).toBe('SCOREBOARD');
   });
 
-  it('a correct final guess wins for the whole Grinch team', () => {
+  it('a correct final guess wins for the whole Imposter team', () => {
     const t = makeRoom(8, { grinchCount: 2, finalGuessEnabled: true });
     startToClues(t);
     toVoting(t);
@@ -358,7 +375,7 @@ describe('win conditions and final guess', () => {
     expect(pub.players.find((p) => p.id === g2)!.score).toBe(SCORING.GRINCH_WIN);
   });
 
-  it('final guess timeout counts as wrong; with Grinches left the match continues', () => {
+  it('final guess timeout counts as wrong; with Imposters left the match continues', () => {
     const t = makeRoom(8, { grinchCount: 2, finalGuessEnabled: true });
     startToClues(t);
     toVoting(t);
@@ -376,10 +393,10 @@ describe('win conditions and final guess', () => {
     expect(pub.players.find((p) => p.id === g2)!.revealedRole).toBeNull();
   });
 
-  it('Grinches win once they equal the Elves', () => {
+  it('Imposters win once they equal the Innocents', () => {
     const t = makeRoom(4, { finalGuessEnabled: false });
     startToClues(t);
-    // 1 Grinch vs 3 Elves. Eliminate two Elves.
+    // 1 Imposter vs 3 Innocents. Eliminate two Innocents.
     for (let i = 0; i < 2; i++) {
       toVoting(t);
       const target = elves(t).find((id) => t.room.aliveIds().includes(id))!;
@@ -392,7 +409,7 @@ describe('win conditions and final guess', () => {
     expect(pub.match!.results!.reason).toBe('GRINCHES_OUTNUMBER');
   });
 
-  it('single-vote mode: naming every Grinch wins for the Elves, a miss wins for the Grinches', () => {
+  it('single-vote mode: naming every Imposter wins for the Innocents, a miss wins for the Imposters', () => {
     const win = makeRoom(7, { grinchCount: 2, votingSystem: 'SINGLE', finalGuessEnabled: false, allowSkipVote: false });
     startToClues(win);
     toVoting(win);
@@ -403,7 +420,7 @@ describe('win conditions and final guess', () => {
       if (others.length === 2) return others;
       return [...others, elves(win).find((e) => e !== voter)!];
     });
-    // Elves (5 voters) named both Grinches; Grinches split their spare votes → both Grinches top the tally.
+    // Innocents (5 voters) named both Imposters; Imposters split their spare votes → both Imposters top the tally.
     expect(win.room.publicState().match!.lastResult!.kind).toBe('ACCUSED');
     continueResults(win);
     expect(win.room.publicState().match!.results!.winner).toBe('ELVES');
@@ -418,7 +435,7 @@ describe('win conditions and final guess', () => {
     expect(lose.room.publicState().match!.results!.reason).toBe('INNOCENT_ACCUSED');
   });
 
-  it('a Grinch leaving mid-match ends it for the Elves and reveals the role', () => {
+  it('an Imposter leaving mid-match ends it for the Innocents and reveals the role', () => {
     const t = makeRoom(4);
     startToClues(t);
     const [g] = grinches(t);
@@ -500,9 +517,9 @@ describe('phase 2: custom packs, host controls, stats', () => {
     const t = makeRoom(3);
     expectError(() => t.room.setLocked(t.ids[1], true), 'NOT_HOST');
     t.room.setLocked(t.host, true);
-    expectError(() => t.room.addPlayer('Late', '🎅'), 'ROOM_LOCKED');
+    expectError(() => t.room.addPlayer('Late', 'gentleman'), 'ROOM_LOCKED');
     t.room.setLocked(t.host, false);
-    t.room.addPlayer('Late', '🎅');
+    t.room.addPlayer('Late', 'baker');
     t.room.transferHost(t.host, t.ids[2]);
     expect(t.room.hostId).toBe(t.ids[2]);
     expectError(() => t.room.startMatch(t.host), 'NOT_HOST');
@@ -530,8 +547,8 @@ describe('room screen and practice round', () => {
     expect(t.room.isEmpty()).toBe(true);
     t.room.displaySockets.add('screen');
     expect(t.room.isEmpty()).toBe(false);
-    const first = t.room.addPlayer('First', '🎅');
-    t.room.addPlayer('Second', '🦌');
+    const first = t.room.addPlayer('First', 'gentleman');
+    t.room.addPlayer('Second', 'detective');
     expect(t.room.hostId).toBe(first.id);
     // The room screen gets public info only.
     expect(t.room.privateState('')).toMatchObject({ role: null, word: null, hint: null, canJudge: false });

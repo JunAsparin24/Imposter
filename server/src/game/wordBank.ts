@@ -6,7 +6,7 @@ import type { Rng } from './rng';
 
 export interface WordEntry {
   word: string;
-  /** One related word shown to every Grinch (the same hint for all of them). '' = no hint. */
+  /** One related word shown to every Imposter (the same hint for all of them). '' = no hint. */
   hint: string;
   category: CategoryId | 'practice';
 }

@@ -4,45 +4,59 @@ export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 16;
 export const NAME_MAX_LENGTH = 16;
 
-export const ROOM_CODE_LENGTH = 6;
+export const ROOM_CODE_LENGTH = 4;
 /** No 0/O, 1/I/L to keep codes easy to read aloud and type. */
 export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
 export const AVATARS = [
-  '🎅', '🤶', '🦌', '⛄', '🎄', '🎁', '🍪', '🔔',
-  '⭐', '🧦', '🍭', '❄️', '🐧', '🐻‍❄️', '🦊', '🦉',
-  '🧸', '🎿', '🕯️', '☕',
+  'gentleman',
+  'artist',
+  'detective',
+  'maid',
+  'scholar',
+  'socialite',
+  'newsboy',
+  'lady-in-red',
+  'butler',
+  'diva',
+  'cabbie',
+  'librarian',
+  'captain',
+  'explorer',
+  'professor',
+  'stable-hand',
+  'baker',
+  'heir',
+  'hooded-stranger',
+  'doctor',
 ] as const;
 
-/** Pixel-art image for each avatar id (files live in client/public/avatars). */
-export const AVATAR_IMAGES: Record<(typeof AVATARS)[number], string> = {
-  '🎅': 'santa',
-  '🤶': 'mrs-claus',
-  '🦌': 'reindeer',
-  '⛄': 'snowman',
-  '🎄': 'tree',
-  '🎁': 'gift',
-  '🍪': 'gingerbread',
-  '🔔': 'bell',
-  '⭐': 'star',
-  '🧦': 'stocking',
-  '🍭': 'candy-cane',
-  '❄️': 'snowflake',
-  '🐧': 'penguin',
-  '🐻‍❄️': 'polar-bear',
-  '🦊': 'fox',
-  '🦉': 'owl',
-  '🧸': 'teddy-bear',
-  '🎿': 'sled',
-  '🕯️': 'candle',
-  '☕': 'cocoa',
-};
+export type AvatarId = (typeof AVATARS)[number];
 
-export const AVATAR_LABELS: Record<(typeof AVATARS)[number], string> = {
-  '🎅': 'Santa', '🤶': 'Mrs. Claus', '🦌': 'Reindeer', '⛄': 'Snowman', '🎄': 'Christmas tree',
-  '🎁': 'Gift', '🍪': 'Gingerbread', '🔔': 'Bell', '⭐': 'Star cookie', '🧦': 'Stocking',
-  '🍭': 'Candy cane', '❄️': 'Snowflake', '🐧': 'Penguin', '🐻‍❄️': 'Polar bear', '🦊': 'Fox',
-  '🦉': 'Owl', '🧸': 'Teddy bear', '🎿': 'Sled', '🕯️': 'Candle', '☕': 'Hot cocoa',
+/** Pixel-art portrait for each avatar (files live in client/public/avatars/<id>.webp). */
+export const AVATAR_IMAGES: Record<AvatarId, string> = Object.fromEntries(AVATARS.map((a) => [a, a])) as Record<AvatarId, string>;
+
+export const AVATAR_LABELS: Record<AvatarId, string> = {
+  'gentleman': 'Gentleman',
+  'artist': 'Artist',
+  'detective': 'Detective',
+  'maid': 'Maid',
+  'scholar': 'Scholar',
+  'socialite': 'Socialite',
+  'newsboy': 'Newsboy',
+  'lady-in-red': 'Lady in Red',
+  'butler': 'Butler',
+  'diva': 'Diva',
+  'cabbie': 'Cabbie',
+  'librarian': 'Librarian',
+  'captain': 'Captain',
+  'explorer': 'Explorer',
+  'professor': 'Professor',
+  'stable-hand': 'Stable Hand',
+  'baker': 'Baker',
+  'heir': 'Heir',
+  'hooded-stranger': 'Hooded Stranger',
+  'doctor': 'Doctor',
 };
 
 export interface CategoryMeta {
@@ -78,7 +92,7 @@ export const CUSTOM_PACK = {
 
 /**
  * Parses custom pack lines. Each line is a word, optionally followed by "|" and a hint word
- * that every Grinch will see: "Hot Chocolate | Mug". Blank lines, duplicates and over-long
+ * that every Imposter will see: "Hot Chocolate | Mug". Blank lines, duplicates and over-long
  * entries are dropped.
  */
 export function parseCustomPackLines(lines: string[]): { word: string; hint: string }[] {
@@ -146,13 +160,13 @@ export const TIMING = {
   SPEAKER_DISCONNECT_GRACE_MS: 20_000,
   /** Voting closes early once every missing voter has been offline this long. */
   VOTER_DISCONNECT_GRACE_MS: 20_000,
-  /** Time for the caught Grinch to say a guess and an Elf to confirm it. */
+  /** Time for the caught Imposter to say a guess and an Innocent to confirm it. */
   FINAL_GUESS_MS: 60_000,
   VOTE_RESULTS_AUTO_MS: 9_000,
   DISCUSSION_EXTEND_MS: 30_000,
 } as const;
 
-/** Recommended Grinch count by player count. */
+/** Recommended Imposter count by player count. */
 export function recommendedGrinchCount(players: number): number {
   if (players >= 14) return 4;
   if (players >= 10) return 3;
@@ -160,7 +174,7 @@ export function recommendedGrinchCount(players: number): number {
   return 1;
 }
 
-/** Grinches must always be strictly fewer than half the players. */
+/** Imposters must always be strictly fewer than half the players. */
 export function maxGrinchCount(players: number): number {
   return Math.max(1, Math.floor((players - 1) / 2));
 }

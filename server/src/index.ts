@@ -42,7 +42,7 @@ const serveClient = !DEV && existsSync(clientDist);
 const appPort = serveClient ? PORT : 5173;
 
 /**
- * Wi-Fi addresses for local testing: when the room screen is opened on localhost, the QR code
+ * Wi-Fi addresses for local testing: when the room screen is opened on localhost, the join address
  * uses this computer's Wi-Fi address instead. On a real website (Render) the page's own address is used.
  */
 app.get('/api/join-info', (_req, res) => {
@@ -91,7 +91,7 @@ createGameServer({ io, store: new InMemoryRoomStore(), words: new WordBank(), tr
 
 // '::' listens on IPv4 and IPv6, so "localhost" answers instantly whichever one it resolves to.
 httpServer.listen(PORT, '::', () => {
-  console.log(`IMPOSTER Christmas Edition server on http://localhost:${PORT}`);
+  console.log(`IMPOSTER server on http://localhost:${PORT}`);
   if (!serveClient && !DEV) console.log('   (client not built - run `npm run build`, or use `npm run dev`)');
   console.log(`   Open the game: http://localhost:${appPort}`);
   for (const ip of lanAddresses()) console.log(`   Phones on your Wi-Fi: http://${ip}:${appPort}`);

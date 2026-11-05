@@ -8,11 +8,11 @@ import { ActionBar, Button, ConfirmButton, SectionTitle, Sheet } from '../compon
 import { useRoom } from '../state/GameProvider';
 
 const REASONS: Record<WinReason, string> = {
-  GRINCHES_CAUGHT: 'Every Grinch got caught.',
-  GRINCHES_OUTNUMBER: 'There are as many Grinches left as Elves.',
-  FINAL_GUESS: 'The caught Grinch guessed the secret word.',
-  INNOCENT_ACCUSED: 'The group voted out an Elf. The Grinches got away.',
-  GRINCHES_LEFT: 'The Grinches left the game.',
+  GRINCHES_CAUGHT: 'Every Imposter got caught.',
+  GRINCHES_OUTNUMBER: 'There are as many Imposters left as Innocents.',
+  FINAL_GUESS: 'The caught Imposter guessed the secret word.',
+  INNOCENT_ACCUSED: 'The group voted out an Innocent. The Imposters got away.',
+  GRINCHES_LEFT: 'The Imposters left the game.',
 };
 
 // ───────────────────────────── ROUND RESULTS ─────────────────────────────
@@ -42,7 +42,7 @@ export function RoundResultsScreen() {
         }`}
       >
         <h1 className={`heading mt-2 text-[clamp(2rem,10vw,3rem)] ${elvesWon ? 'text-elf' : 'text-grinch'}`}>
-          {elvesWon ? 'The Elves win!' : 'The Grinches win!'}
+          {elvesWon ? 'The Innocents win!' : 'The Imposters win!'}
         </h1>
         <p className="mt-2 text-sm text-snow/85">{REASONS[res.reason]}</p>
         {res.practice && <p className="mt-2 text-xs font-bold uppercase tracking-widest text-gold">Practice round · no points</p>}
@@ -60,8 +60,8 @@ export function RoundResultsScreen() {
       </div>
 
       <div className="grid gap-3 min-[460px]:grid-cols-2">
-        <RoleList title={`Grinch${grinches.length === 1 ? '' : 'es'}`} tone="grinch" players={grinches} />
-        <RoleList title="Elves" tone="elf" players={elves} />
+        <RoleList title={`Imposter${grinches.length === 1 ? '' : 'es'}`} tone="grinch" players={grinches} />
+        <RoleList title="Innocents" tone="elf" players={elves} />
       </div>
 
       {!res.practice && <section className="card p-4">
@@ -211,7 +211,7 @@ export function ScoreboardScreen() {
                   {mine && <span className="text-xs font-semibold text-night-400"> (you)</span>}
                 </p>
                 <p className="text-xs text-night-300">
-                  {p.stats.wins}/{p.stats.matchesPlayed} wins · {p.stats.grinchMatches}× Grinch · {p.stats.correctVotes} good votes
+                  {p.stats.wins}/{p.stats.matchesPlayed} wins · {p.stats.grinchMatches}× Imposter · {p.stats.correctVotes} good votes
                 </p>
               </div>
               <span className="font-display text-xl tabular-nums text-gold"><CountUp from={Math.max(0, p.score - (room.history[0]?.pointsEarned[p.id] ?? 0))} to={p.score} delay={0.3 + i * 0.05} /></span>
@@ -232,10 +232,10 @@ export function ScoreboardScreen() {
               <li key={h.matchNumber + '-' + h.endedAt} className="flex items-center gap-2">
                 <span className="w-7 shrink-0 text-xs font-bold text-night-400">#{h.matchNumber}</span>
                 <span className="min-w-0 flex-1 truncate">
-                  <b>{h.word}</b> <span className="text-night-400">· Grinch: {h.grinchNames.join(', ')}</span>
+                  <b>{h.word}</b> <span className="text-night-400">· Imposter: {h.grinchNames.join(', ')}</span>
                 </span>
                 <span className={`shrink-0 text-xs font-bold ${h.winner === 'ELVES' ? 'text-elf' : 'text-grinch'}`}>
-                  {h.winner === 'ELVES' ? 'Elves' : 'Grinches'}
+                  {h.winner === 'ELVES' ? 'Innocents' : 'Imposters'}
                 </span>
               </li>
             ))}
@@ -285,9 +285,9 @@ export function ScoreboardScreen() {
 // ───────────────────────────── AWARDS & STATS ─────────────────────────────
 
 const AWARDS: { key: keyof PlayerStats; title: string; what: (n: number) => string }[] = [
-  { key: 'correctVotes', title: 'Top Detective', what: (n) => `${n} vote${n === 1 ? '' : 's'} for a Grinch` },
-  { key: 'grinchWins', title: 'Master of Disguise', what: (n) => `${n} win${n === 1 ? '' : 's'} as a Grinch` },
-  { key: 'elfWins', title: 'Most Loyal Elf', what: (n) => `${n} win${n === 1 ? '' : 's'} as an Elf` },
+  { key: 'correctVotes', title: 'Top Detective', what: (n) => `${n} vote${n === 1 ? '' : 's'} for an Imposter` },
+  { key: 'grinchWins', title: 'Master of Disguise', what: (n) => `${n} win${n === 1 ? '' : 's'} as an Imposter` },
+  { key: 'elfWins', title: 'Most Trustworthy', what: (n) => `${n} win${n === 1 ? '' : 's'} as an Innocent` },
   { key: 'correctGuesses', title: 'Word Thief', what: (n) => `${n} correct final guess${n === 1 ? '' : 'es'}` },
   { key: 'timesVotedOut', title: 'Most Suspicious', what: (n) => `voted out ${n} time${n === 1 ? '' : 's'}` },
 ];
@@ -329,9 +329,9 @@ function PlayerStatsSheet({ player, onClose }: { player: PublicPlayer | null; on
         ['Points', player!.score],
         ['Matches played', s.matchesPlayed],
         ['Win rate', pct(s.wins, s.matchesPlayed)],
-        ['Wins as an Elf', `${s.elfWins} / ${elfMatches}`],
-        ['Wins as a Grinch', `${s.grinchWins} / ${s.grinchMatches}`],
-        ['Votes for a Grinch', s.correctVotes],
+        ['Wins as an Innocent', `${s.elfWins} / ${elfMatches}`],
+        ['Wins as an Imposter', `${s.grinchWins} / ${s.grinchMatches}`],
+        ['Votes for an Imposter', s.correctVotes],
         ['Times voted out', s.timesVotedOut],
         ['Correct final guesses', s.correctGuesses],
       ]

@@ -114,23 +114,23 @@ function useAnnouncement(): string {
       return speaker.id === me ? "It's your turn. Say one word out loud." : `${speaker.name} is speaking.`;
     }
     case 'DISCUSSION':
-      return 'Discussion time. Talk about who might be a Grinch.';
+      return 'Discussion time. Talk about who might be an Imposter.';
     case 'VOTING':
-      return m?.vote?.isRevote ? 'Revote between the tied players.' : 'Voting has started. Choose who you think is a Grinch.';
+      return m?.vote?.isRevote ? 'Revote between the tied players.' : 'Voting has started. Choose who you think is an Imposter.';
     case 'VOTE_RESULTS': {
       const r = m?.lastResult;
       if (!r) return '';
       if (r.kind === 'ELIMINATED' || r.kind === 'ACCUSED') {
         return r.playerIds
-          .map((id) => `${playerById(id)?.name ?? 'Someone'} was ${r.roles[id] === 'GRINCH' ? 'a Grinch' : 'an Elf'}.`)
+          .map((id) => `${playerById(id)?.name ?? 'Someone'} was ${r.roles[id] === 'GRINCH' ? 'an Imposter' : 'an Innocent'}.`)
           .join(' ');
       }
       return r.kind === 'TIE' ? 'It is a tie. A revote is coming.' : 'Nobody was eliminated.';
     }
     case 'FINAL_GUESS':
-      return 'The caught Grinch is making one final guess at the secret word.';
+      return 'The caught Imposter is making one final guess at the secret word.';
     case 'ROUND_RESULTS':
-      return m?.results ? `${m.results.winner === 'ELVES' ? 'The Elves' : 'The Grinches'} win. The secret word was ${m.results.word}.` : '';
+      return m?.results ? `${m.results.winner === 'ELVES' ? 'The Innocents' : 'The Imposters'} win. The secret word was ${m.results.word}.` : '';
     case 'SCOREBOARD':
       return 'Scoreboard.';
     default:

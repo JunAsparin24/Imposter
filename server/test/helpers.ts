@@ -1,4 +1,4 @@
-import type { GameSettings } from '@imposter/shared';
+import { AVATARS, type GameSettings } from '@imposter/shared';
 import { Room } from '../src/game/Room';
 import { cryptoRng } from '../src/game/rng';
 import { WordBank } from '../src/game/wordBank';
@@ -17,7 +17,7 @@ export function makeRoom(playerCount: number, settings: Partial<GameSettings> = 
   const room = new Room('TESTAB', { rng: cryptoRng, words, clock: () => clock.t });
   const ids: string[] = [];
   for (let i = 0; i < playerCount; i++) {
-    const p = room.addPlayer(`Player${i + 1}`, '🎅');
+    const p = room.addPlayer(`Player${i + 1}`, AVATARS[i % AVATARS.length]);
     room.connect(p.id, `socket-${p.id}`);
     ids.push(p.id);
   }
@@ -64,5 +64,6 @@ export function voteAll(t: TestRoom, choose: (voterId: string) => string | strin
 }
 
 export function continueResults(t: TestRoom): void {
+  if (t.room.phase === 'VOTE_RESULTS' && !t.room.match!.resultRevealed) t.room.revealResult(t.host, t.room.phaseSeq);
   t.room.continueFromResults(t.host, t.room.phaseSeq);
 }

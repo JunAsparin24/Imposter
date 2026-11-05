@@ -45,8 +45,8 @@ export function Snowfall({ count = 36 }: { count?: number }) {
   );
 }
 
-export function Logo({ size = 'lg' }: { size?: 'sm' | 'lg' }) {
-  const big = size === 'lg';
+export function Logo({ size = 'lg' }: { size?: 'sm' | 'md' | 'lg' }) {
+  const big = size !== 'sm';
   return (
     <div className="relative select-none text-center">
       <motion.h1
@@ -54,19 +54,21 @@ export function Logo({ size = 'lg' }: { size?: 'sm' | 'lg' }) {
         animate={{ opacity: 1, y: 0, letterSpacing: '0.06em' }}
         transition={{ duration: 0.7, ease: 'easeOut' }}
         className={`heading bg-gradient-to-b from-white via-snow to-night-300 bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(255,255,255,0.15)] ${
-          big ? 'text-[clamp(2.75rem,15vw,5.5rem)]' : 'text-2xl'
+          size === 'lg' ? 'text-[clamp(2.75rem,15vw,5.5rem)]' : size === 'md' ? 'text-[clamp(2.25rem,3.6vw,3.25rem)]' : 'text-2xl'
         }`}
       >
         IMP<span className="text-grinch [-webkit-text-fill-color:theme(colors.grinch.DEFAULT)]">O</span>STER
       </motion.h1>
-      <motion.p
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.35, duration: 0.5 }}
-        className={`font-festive font-bold ${big ? '-mt-1 text-[clamp(1.5rem,7vw,2.25rem)]' : 'text-base'}`}
-      >
-        <span className="text-grinch">Christmas</span> <span className="text-elf">Edition</span>
-      </motion.p>
+      {big && (
+        <motion.p
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35, duration: 0.5 }}
+          className="mt-1 text-[clamp(0.8rem,3.2vw,1rem)] font-bold uppercase tracking-[0.4em] text-night-300"
+        >
+          Find the faker
+        </motion.p>
+      )}
     </div>
   );
 }
@@ -92,11 +94,11 @@ export function Avatar({
           : 'ring-1 ring-white/10';
   return (
     <span
-      className={`grid shrink-0 place-items-center rounded-full bg-night-700 ${ringClass} ${dim ? 'opacity-40 grayscale' : ''}`}
+      className={`grid shrink-0 place-items-center overflow-hidden rounded-full bg-night-800 ${ringClass} ${dim ? 'opacity-40 grayscale' : ''}`}
       style={{ width: size, height: size, fontSize: size * 0.52 }}
       aria-hidden
     >
-      <AvatarImg id={emoji} size={Math.round(size * 0.74)} />
+      <AvatarImg id={emoji} size={size} className="scale-[1.12]" />
     </span>
   );
 }

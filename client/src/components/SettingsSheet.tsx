@@ -64,7 +64,7 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
           </div>
         </Section>
 
-        <Section title="Grinches (imposters)">
+        <Section title="Imposters">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -75,7 +75,7 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
             </button>
             <div className="flex items-center gap-1 rounded-xl bg-white/[0.05] p-1">
               <StepButton
-                label="Fewer Grinches"
+                label="Fewer Imposters"
                 onClick={() => {
                   const cur = s.grinchCount === 'auto' ? recommendedGrinchCount(playerCount) : s.grinchCount;
                   update({ grinchCount: Math.max(1, cur - 1) });
@@ -87,7 +87,7 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
                 {s.grinchCount === 'auto' ? recommendedGrinchCount(playerCount) : s.grinchCount}
               </span>
               <StepButton
-                label="More Grinches"
+                label="More Imposters"
                 onClick={() => {
                   const cur = s.grinchCount === 'auto' ? recommendedGrinchCount(playerCount) : s.grinchCount;
                   update({ grinchCount: Math.min(maxGrinchCount(MAX_PLAYERS), cur + 1) });
@@ -98,7 +98,7 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
             </div>
           </div>
           <p className="mt-2 text-xs text-night-300">
-            With {playerCount} player{playerCount === 1 ? '' : 's'}: up to {max}. Grinches must be fewer than half the room.
+            With {playerCount} player{playerCount === 1 ? '' : 's'}: up to {max}. Imposters must be fewer than half the room.
           </p>
         </Section>
 
@@ -143,8 +143,8 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
           />
           <p className="mt-2 text-xs text-night-300">
             {s.votingSystem === 'ELIMINATION'
-              ? 'Vote someone out after every clue round until all Grinches are caught, or the Grinches equal the Elves.'
-              : 'One decisive vote. Everyone names as many suspects as there are Grinches. Catch every Grinch to win; name an Elf and the Grinches win.'}
+              ? 'Vote someone out after every clue round until all Imposters are caught, or the Imposters equal the Innocents.'
+              : 'One decisive vote. Everyone names as many suspects as there are Imposters. Catch every Imposter to win; name an Innocent and the Imposters win.'}
           </p>
         </Section>
 
@@ -217,7 +217,7 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
               checked={s.finalGuessEnabled}
               onChange={(v) => update({ finalGuessEnabled: v })}
               label="Final word guess"
-              description="A caught Grinch says one guess out loud. If an Elf confirms it, the Grinches win."
+              description="A caught Imposter says one guess out loud. If an Innocent confirms it, the Imposters win."
             />
             <Toggle
               checked={s.allowSkipVote}
@@ -228,8 +228,8 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
             <Toggle
               checked={s.grinchHint}
               onChange={(v) => update({ grinchHint: v })}
-              label="Hint word for Grinches"
-              description="Every Grinch gets the same hint word, e.g. “Oven” for Cookies."
+              label="Hint word for Imposters"
+              description="Every Imposter gets the same hint word, e.g. “Oven” for Cookies."
             />
             <Toggle
               checked={s.autoAdvance}
@@ -280,7 +280,7 @@ export function settingsSummary(s: GameSettings, players: number, customPackName
   return [
     { label: 'Mode', value: 'Classic' },
     {
-      label: 'Grinches',
+      label: 'Imposters',
       value: s.grinchCount === 'auto' ? `Auto (${recommendedGrinchCount(players)})` : String(s.grinchCount),
     },
     {

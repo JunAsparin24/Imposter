@@ -117,6 +117,8 @@ interface Match {
   vote: VoteSession | null;
   voteHistory: VoteSession[];
   lastResult: VoteResult | null;
+  /** False while the voted-out player's role is still hidden (host taps "Reveal role"). */
+  resultRevealed: boolean;
   pendingRevote: PendingRevote | null;
   finalGuess: { guesserIds: string[] } | null;
   allGuesses: { playerId: string; correct: boolean }[];
@@ -175,7 +177,7 @@ export class Room {
   /** Host-made word pack, used when the "custom" category is selected. */
   customPack: CustomPack | null = null;
   /**
-   * The device that created the room acts as the shared room screen (code, QR, live game view).
+   * The device that created the room acts as the shared room screen (code, players, live game view).
    * It is not a player. This token lets it reconnect after a refresh.
    */
   readonly displayToken = generateToken();
@@ -220,6 +222,10 @@ export class Room {
     if (blocker === 'ROOM_LOCKED') throw new GameError(blocker, 'The host has locked this room.');
     const base = sanitizeName(rawName);
     if (!base) throw new GameError('INVALID_INPUT', 'Please enter a display name.');
+    // Each avatar can only be used by one player in a room.
+    if (this.takenAvatars().includes(avatar)) {
+      throw new GameError('AVATAR_TAKEN', 'Someone already picked that avatar. Choose another one.');
+    }
     const now = this.now();
     const player: PlayerRecord = {
       id: generateId('p'),
@@ -242,6 +248,10 @@ export class Room {
     }
     this.touch();
     return player;
+  }
+
+  takenAvatars(): string[] {
+    return this.activePlayers().map((p) => p.avatar);
   }
 
   /** Duplicate display names get a numeric suffix ("Alex", "Alex 2"). IDs, not names, identify players. */
@@ -346,7 +356,7 @@ export class Room {
     if (next.categories.length === 0) throw new GameError('INVALID_SETTINGS', 'Pick at least one category.');
     next.categories = [...new Set(next.categories)];
     if (next.grinchCount !== 'auto' && (next.grinchCount < 1 || next.grinchCount > maxGrinchCount(MAX_PLAYERS))) {
-      throw new GameError('INVALID_SETTINGS', 'Invalid number of Grinches.');
+      throw new GameError('INVALID_SETTINGS', 'Invalid number of Imposters.');
     }
     // Settings are snapshotted when a match starts, so editing mid-match only affects the next match.
     this.settings = next;
@@ -416,7 +426,7 @@ export class Room {
     if (grinchCount < 1 || grinchCount > max) {
       throw new GameError(
         'INVALID_SETTINGS',
-        `With ${present.length} players you can have at most ${max} Grinch${max === 1 ? '' : 'es'}.`,
+        `With ${present.length} players you can have at most ${max} Imposter${max === 1 ? '' : 'es'}.`,
       );
     }
 
@@ -455,6 +465,7 @@ export class Room {
       vote: null,
       voteHistory: [],
       lastResult: null,
+      resultRevealed: true,
       pendingRevote: null,
       finalGuess: null,
       allGuesses: [],
@@ -540,6 +551,16 @@ export class Room {
     if (v.eligibleIds.every((id) => v.ballots.has(id))) this.resolveVote();
   }
 
+  /** Host reveals the voted-out player's role to everyone at once. */
+  revealResult(actorId: string, phaseSeq: number): void {
+    this.requireHost(actorId);
+    this.requirePhase('VOTE_RESULTS', phaseSeq);
+    const m = this.match!;
+    if (m.resultRevealed) throw new GameError('STALE_ACTION', 'Already revealed.');
+    m.resultRevealed = true;
+    if (m.settings.autoAdvance) this.deadline = this.now() + TIMING.VOTE_RESULTS_AUTO_MS;
+  }
+
   closeVoting(actorId: string, phaseSeq: number): void {
     this.requireHost(actorId);
     this.requirePhase('VOTING', phaseSeq);
@@ -551,6 +572,7 @@ export class Room {
     this.requireHost(actorId);
     if (this.phase === 'VOTE_RESULTS') {
       this.requirePhase('VOTE_RESULTS', phaseSeq);
+      if (!this.match!.resultRevealed) throw new GameError('NOT_ALLOWED', 'Reveal their role first.');
       this.afterVoteResults();
     } else if (this.phase === 'ROUND_RESULTS') {
       this.requirePhase('ROUND_RESULTS', phaseSeq);
@@ -563,20 +585,20 @@ export class Room {
   }
 
   /**
-   * The caught Grinch says their guess OUT LOUD; any Elf (they know the word) taps whether
-   * it was right. The first Elf to answer decides. phaseSeq stops double taps counting twice.
+   * The caught Imposter says their guess OUT LOUD; any Innocent (they know the word) taps whether
+   * it was right. The first Innocent to answer decides. phaseSeq stops double taps counting twice.
    */
   judgeGuess(judgeId: string, phaseSeq: number, correct: boolean): void {
     this.requirePhase('FINAL_GUESS', phaseSeq);
     const m = this.match!;
     const fg = m.finalGuess!;
     if (m.roles.get(judgeId) !== 'ELF' || m.departedIds.includes(judgeId)) {
-      throw new GameError('NOT_ALLOWED', 'Only Elves (who know the word) can judge the guess.');
+      throw new GameError('NOT_ALLOWED', 'Only Innocents (who know the word) can judge the guess.');
     }
     for (const id of fg.guesserIds) m.allGuesses.push({ playerId: id, correct });
     m.lastGuess = { playerId: fg.guesserIds[0], correct };
     if (correct) {
-      // A correct final guess wins the match for the whole Grinch team.
+      // A correct final guess wins the match for the whole Imposter team.
       this.endMatch('GRINCHES', 'FINAL_GUESS');
     } else {
       this.resolveFinalGuessFailure();
@@ -760,7 +782,9 @@ export class Room {
     m.voteHistory.push(v);
     m.vote = null;
     m.lastResult = result;
-    this.setPhase('VOTE_RESULTS', m.settings.autoAdvance ? this.now() + TIMING.VOTE_RESULTS_AUTO_MS : null);
+    // When someone is voted out, their role stays hidden until the host taps "Reveal role".
+    m.resultRevealed = !(result.kind === 'ELIMINATED' || result.kind === 'ACCUSED');
+    this.setPhase('VOTE_RESULTS', m.resultRevealed && m.settings.autoAdvance ? this.now() + TIMING.VOTE_RESULTS_AUTO_MS : null);
   }
 
   private afterVoteResults(): void {
@@ -841,7 +865,7 @@ export class Room {
     const m = this.match!;
     if (this.phase === 'FINAL_GUESS') {
       if (!m.departedIds.includes(playerId)) m.departedIds.push(playerId);
-      // If every caught Grinch who was guessing has left, the guess is lost.
+      // If every caught Imposter who was guessing has left, the guess is lost.
       const fg = m.finalGuess!;
       if (fg.guesserIds.every((id) => m.departedIds.includes(id))) this.resolveFinalGuessFailure();
       return;
@@ -878,8 +902,8 @@ export class Room {
     for (const id of m.participantIds) {
       if (!stillHere(id)) continue;
       const role = m.roles.get(id);
-      if (winner === 'ELVES' && role === 'ELF') add(id, SCORING.ELF_WIN, 'Elves won');
-      if (winner === 'GRINCHES' && role === 'GRINCH') add(id, SCORING.GRINCH_WIN, 'Grinches won');
+      if (winner === 'ELVES' && role === 'ELF') add(id, SCORING.ELF_WIN, 'Innocents won');
+      if (winner === 'GRINCHES' && role === 'GRINCH') add(id, SCORING.GRINCH_WIN, 'Imposters won');
     }
     const correctVotes: Record<string, number> = {};
     for (const v of m.voteHistory) {
@@ -888,7 +912,7 @@ export class Room {
         if (m.roles.get(voterId) !== 'ELF' || !stillHere(voterId)) continue;
         for (const pick of ballot.picks) {
           if (m.roles.get(pick) === 'GRINCH') {
-            add(voterId, SCORING.CORRECT_VOTE, 'Voted for a Grinch');
+            add(voterId, SCORING.CORRECT_VOTE, 'Voted for an Imposter');
             correctVotes[voterId] = (correctVotes[voterId] ?? 0) + 1;
           }
         }
@@ -943,7 +967,7 @@ export class Room {
       players: m.participantIds.map((id) => ({
         id,
         name: nameOf(id),
-        avatar: this.players.get(id)?.avatar ?? '🎁',
+        avatar: this.players.get(id)?.avatar ?? 'gentleman',
         role: m.roles.get(id)!,
         eliminated: m.eliminatedIds.includes(id),
         left: m.departedIds.includes(id),
@@ -1121,7 +1145,10 @@ export class Room {
         const participant = !!m && m.participantIds.includes(p.id);
         const eliminated = !!m && m.eliminatedIds.includes(p.id);
         const departed = !!m && m.departedIds.includes(p.id);
-        const roleIsPublic = participant && (!!m!.results || eliminated || departed);
+        // A just-voted-out player's role stays secret until the host reveals it.
+        const hiddenForReveal =
+          this.phase === 'VOTE_RESULTS' && !m!.resultRevealed && !!m!.lastResult?.playerIds.includes(p.id);
+        const roleIsPublic = participant && !hiddenForReveal && (!!m!.results || eliminated || departed);
         return {
           id: p.id,
           name: p.name,
@@ -1169,7 +1196,8 @@ export class Room {
               submittedIds: [...v.ballots.keys()],
             }
           : null,
-        lastResult: m.lastResult,
+        lastResult: m.lastResult && !m.resultRevealed ? { ...m.lastResult, roles: {} } : m.lastResult,
+        resultRevealed: m.resultRevealed,
         finalGuess: m.finalGuess
           ? { guesserIds: [...m.finalGuess.guesserIds], submittedIds: [] }
           : null,
@@ -1196,7 +1224,7 @@ export class Room {
     };
   }
 
-  /** The private payload for ONE player. Grinches never receive the word. */
+  /** The private payload for ONE player. Imposters never receive the word. */
   privateState(playerId: string): PrivatePlayerState {
     const base: PrivatePlayerState = {
       playerId,
@@ -1227,11 +1255,11 @@ export class Room {
       out.category = m.word.category === 'practice' ? null : m.word.category;
       out.categoryName = this.categoryLabel(m);
     } else {
-      // Every Grinch gets the SAME hint word (never the secret word itself).
+      // Every Imposter gets the SAME hint word (never the secret word itself).
       if (m.settings.grinchHint) out.hint = m.word.hint || 'No hint for this one';
       out.teammates = m.grinchIds
         .filter((id) => id !== playerId)
-        .map((id) => ({ id, name: this.players.get(id)?.name ?? 'Unknown', avatar: this.players.get(id)?.avatar ?? '🎁' }));
+        .map((id) => ({ id, name: this.players.get(id)?.name ?? 'Unknown', avatar: this.players.get(id)?.avatar ?? 'gentleman' }));
     }
     const ballot = m.vote?.ballots.get(playerId);
     if (ballot) out.submittedBallot = { picks: [...ballot.picks], skip: ballot.skip };

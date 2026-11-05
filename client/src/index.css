@@ -8,9 +8,12 @@
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
+  html {
+    @apply bg-night-950;
+  }
   html,
   body {
-    @apply bg-night-950 text-snow font-sans antialiased;
+    @apply text-snow font-sans antialiased;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior-y: none;
   }

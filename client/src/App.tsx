@@ -35,7 +35,8 @@ export function App() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <Snowfall />
+      {/* Background glows only (no snowflakes: not a Christmas edition any more). */}
+      <Snowfall count={0} />
       {content}
       <Toasts />
     </MotionConfig>

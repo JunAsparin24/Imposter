@@ -84,7 +84,7 @@ export function CustomPackSheet({ open, onClose }: { open: boolean; onClose: () 
     <Sheet open={open} onClose={onClose} title="Custom word pack">
       <div className="space-y-4">
         <p className="text-sm text-night-300">
-          One word per line. Add <b className="text-snow">| hint</b> after a word to give the Grinches a hint word (e.g. <b className="text-snow">Cookies | Oven</b>).
+          One word per line. Add <b className="text-snow">| hint</b> after a word to give the Imposters a hint word (e.g. <b className="text-snow">Cookies | Oven</b>).
           Players only see the pack's name and size, never the words.
         </p>
         <label className="block">
@@ -92,7 +92,7 @@ export function CustomPackSheet({ open, onClose }: { open: boolean; onClose: () 
           <input
             value={name}
             onChange={(e) => setName(e.target.value.slice(0, CUSTOM_PACK.MAX_NAME_LENGTH))}
-            placeholder="e.g. Family Christmas"
+            placeholder="e.g. Inside Jokes"
             className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-night-800 px-4 font-semibold placeholder:text-night-500 focus:border-gold focus:outline-none"
           />
         </label>

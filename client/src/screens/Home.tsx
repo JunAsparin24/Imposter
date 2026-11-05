@@ -82,7 +82,7 @@ export function Home({ joinCode, onBack }: { joinCode?: string; onBack?: () => v
               <div className="flex flex-1 flex-col items-center justify-center py-8 lg:flex-none lg:py-0">
                 <Logo />
                 <p className="mt-4 max-w-xs text-center text-[15px] leading-relaxed text-night-300 lg:max-w-sm lg:text-base">
-                  Everyone gets the secret word except the <b className="text-grinch">Grinch</b>. Give clues, spot the faker, vote them out.
+                  Everyone gets the secret word except the <b className="text-grinch">Imposter</b>. Give clues, spot the faker, vote them out.
                 </p>
               </div>
 
@@ -137,25 +137,42 @@ function EntryForm({ initialCode }: { initialCode: string }) {
   const { joinRoom, status } = useGame();
   const profile = loadProfile();
   const [name, setName] = useState(profile?.name ?? '');
-  const [avatar, setAvatar] = useState<string>(profile?.avatar ?? AVATARS[Math.floor(Math.random() * AVATARS.length)]);
+  // Older saved profiles may hold an avatar that no longer exists; fall back to a random one.
+  const savedAvatar = profile?.avatar && (AVATARS as readonly string[]).includes(profile.avatar) ? profile.avatar : null;
+  const [avatar, setAvatar] = useState<string>(savedAvatar ?? AVATARS[Math.floor(Math.random() * AVATARS.length)]);
   const [code, setCode] = useState(initialCode);
   const [check, setCheck] = useState<RoomCheckResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Validate the room code with the server as soon as it's complete.
+  // Validate the room code as soon as it's complete, then keep refreshing which avatars are
+  // taken while this form is open (other people may be joining at the same time).
   useEffect(() => {
     setCheck(null);
     if (code.length !== ROOM_CODE_LENGTH || status !== 'connected') return;
     let cancelled = false;
-    void emitAck<RoomCheckResult>('room:check', { code }).then((res) => {
-      if (!cancelled && res.ok) setCheck(res.data);
-    });
+    const load = () =>
+      void emitAck<RoomCheckResult>('room:check', { code }).then((res) => {
+        if (!cancelled && res.ok) setCheck(res.data);
+      });
+    load();
+    const id = setInterval(load, 4000);
     return () => {
       cancelled = true;
+      clearInterval(id);
     };
     // Re-check once the socket connects (invite links open before the connection is up).
   }, [code, status]);
+
+  const taken = check?.takenAvatars ?? [];
+  // If someone grabs the avatar you had selected, move you to a free one.
+  useEffect(() => {
+    if (taken.includes(avatar)) {
+      const free = AVATARS.find((a) => !taken.includes(a));
+      if (free) setAvatar(free);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taken.join(',')]);
 
   const codeProblem =
     check && !check.joinable
@@ -172,12 +189,16 @@ function EntryForm({ initialCode }: { initialCode: string }) {
     e.preventDefault();
     setError(null);
     if (!name.trim()) return setError('Enter a display name.');
-    if (code.length !== ROOM_CODE_LENGTH) return setError('Room codes are 6 characters.');
+    if (code.length !== ROOM_CODE_LENGTH) return setError(`Room codes are ${ROOM_CODE_LENGTH} characters.`);
     setBusy(true);
     const res = await joinRoom(code, name.trim(), avatar);
     setBusy(false);
     if (!res.ok) {
       setError(res.error.message);
+      if (res.error.code === 'AVATAR_TAKEN') {
+        const fresh = await emitAck<RoomCheckResult>('room:check', { code });
+        if (fresh.ok) setCheck(fresh.data);
+      }
     } else {
       try {
         window.history.replaceState(null, '', window.location.pathname);
@@ -192,17 +213,16 @@ function EntryForm({ initialCode }: { initialCode: string }) {
       <div>
         <h1 className="heading text-3xl">Join a room</h1>
         <p className="mt-1 text-sm text-night-300">
-          Enter the 6-character code shown on the room screen. The first person to join is the host.
+          Enter the 4-character code shown on the room screen. The first person to join is the host.
         </p>
       </div>
 
-      {(
-        <label className="block">
+      <label className="block">
           <span className="label">Room code</span>
           <input
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, ROOM_CODE_LENGTH))}
-            placeholder="K7M2PX"
+            placeholder="K7M2"
             autoCapitalize="characters"
             autoComplete="off"
             autoCorrect="off"
@@ -215,8 +235,7 @@ function EntryForm({ initialCode }: { initialCode: string }) {
           />
           {codeProblem && <span className="mt-1.5 block text-sm font-semibold text-grinch-light">{codeProblem}</span>}
           {check?.joinable && <span className="mt-1.5 block text-sm font-semibold text-elf-light">Room found ✓</span>}
-        </label>
-      )}
+      </label>
 
       <label className="block">
         <span className="label">Display name</span>
@@ -233,20 +252,30 @@ function EntryForm({ initialCode }: { initialCode: string }) {
       <fieldset>
         <legend className="label">Pick an avatar</legend>
         <div className="mt-2 grid grid-cols-5 gap-2">
-          {AVATARS.map((a) => (
-            <button
-              key={a}
-              type="button"
-              onClick={() => setAvatar(a)}
-              aria-label={`Avatar: ${AVATAR_LABELS[a]}`}
-              aria-pressed={avatar === a}
-              className={`grid aspect-square place-items-center rounded-2xl text-2xl transition ${
-                avatar === a ? 'scale-105 bg-gold/15 ring-2 ring-gold' : 'bg-white/[0.04] hover:bg-white/[0.08]'
-              }`}
-            >
-              <AvatarImg id={a} size={44} className="max-w-[80%]" />
-            </button>
-          ))}
+          {AVATARS.map((a) => {
+            const isTaken = taken.includes(a);
+            return (
+              <button
+                key={a}
+                type="button"
+                disabled={isTaken}
+                onClick={() => setAvatar(a)}
+                aria-label={`Avatar: ${AVATAR_LABELS[a]}${isTaken ? ' (taken)' : ''}`}
+                aria-pressed={avatar === a}
+                title={isTaken ? 'Someone already picked this one' : AVATAR_LABELS[a]}
+                className={`relative grid aspect-square place-items-center rounded-2xl text-2xl transition ${
+                  isTaken
+                    ? 'cursor-not-allowed bg-white/[0.02] opacity-25 grayscale'
+                    : avatar === a
+                      ? 'scale-105 bg-gold/15 ring-2 ring-gold'
+                      : 'bg-white/[0.04] hover:bg-white/[0.08]'
+                }`}
+              >
+                <AvatarImg id={a} size={64} className="max-w-[88%] max-h-[88%]" />
+                {isTaken && <span className="absolute bottom-1 text-[9px] font-bold uppercase tracking-wider text-night-300">Taken</span>}
+              </button>
+            );
+          })}
         </div>
       </fieldset>
 
