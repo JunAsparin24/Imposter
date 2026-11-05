@@ -1,62 +1,45 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, Copy, Link2, Play, QrCode, Settings2, Share2, UserX } from 'lucide-react';
+import { Check, Copy, Crown, GraduationCap, Link2, Play, QrCode, Settings2, Share2, UserX } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useState } from 'react';
 import { MAX_PLAYERS, MIN_PLAYERS, maxGrinchCount, resolveGrinchCount } from '@imposter/shared';
 import { PlayerRow } from '../components/RoomChrome';
 import { SettingsSheet, settingsSummary } from '../components/SettingsSheet';
-import { ActionBar, Button, ConfirmButton, SectionTitle } from '../components/ui';
+import { ActionBar, Button, ConfirmButton, SectionTitle, Toggle } from '../components/ui';
 import { useRoom } from '../state/GameProvider';
-
-interface JoinInfo {
-  lan: string[];
-  online: string | null;
-  onlinePending: boolean;
-}
 
 const isLocalhost = () => ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
 
 /**
- * Asks the server which address other phones should use. When the host opened the game on
- * `localhost` (e.g. via "Start IMPOSTER.bat"), localhost links would be useless to phones, so
- * we prefer the online link, then the Wi-Fi address.
+ * On the real website the invite link is just this page's address. Only when testing on
+ * `localhost` do we ask the server for this computer's Wi-Fi address, so phones can join.
  */
-function useJoinInfo(): JoinInfo | null {
-  const [info, setInfo] = useState<JoinInfo | null>(null);
+function useLanAddress(): string | null {
+  const [lan, setLan] = useState<string | null>(null);
   useEffect(() => {
+    if (!isLocalhost()) return;
     let stop = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const load = async () => {
-      try {
-        const res = await fetch('/api/join-info', { cache: 'no-store' });
-        const data = (await res.json()) as JoinInfo;
-        if (stop) return;
-        setInfo(data);
-        if (data.onlinePending) timer = setTimeout(load, 3000); // keep checking until the online link is up
-      } catch {
-        /* older server or offline: fall back to this page's address */
-      }
-    };
-    void load();
+    fetch('/api/join-info', { cache: 'no-store' })
+      .then((r) => r.json() as Promise<{ lan: string[] }>)
+      .then((d) => !stop && setLan(d.lan[0] ?? null))
+      .catch(() => {});
     return () => {
       stop = true;
-      clearTimeout(timer);
     };
   }, []);
-  return info;
+  return lan;
 }
 
-function joinBase(info: JoinInfo | null): { base: string; reach: 'online' | 'wifi' | 'this-address' } {
-  if (info?.online) return { base: info.online, reach: 'online' };
-  if (isLocalhost() && info?.lan[0]) return { base: info.lan[0], reach: 'wifi' };
+function joinBase(lan: string | null): { base: string; reach: 'online' | 'wifi' | 'this-address' } {
+  if (isLocalhost() && lan) return { base: lan, reach: 'wifi' };
   return { base: window.location.origin, reach: window.location.protocol === 'https:' ? 'online' : 'this-address' };
 }
 
 export function InviteCard() {
-  const { room, toast } = useRoom();
+  const { room, toast, isHost, send } = useRoom();
   const [showQr, setShowQr] = useState(true);
-  const info = useJoinInfo();
-  const { base, reach } = joinBase(info);
+  const lan = useLanAddress();
+  const { base, reach } = joinBase(lan);
   const link = `${base}/?join=${room.code}`;
   const copy = (text: string, what: string) =>
     navigator.clipboard?.writeText(text).then(
@@ -104,7 +87,7 @@ export function InviteCard() {
             className="overflow-hidden"
           >
             <div className="mx-auto mt-4 w-fit rounded-2xl bg-white p-3">
-              <QRCodeSVG value={link} size={176} bgColor="#ffffff" fgColor="#07090c" level="M" />
+              <QRCodeSVG value={link} size={176} bgColor="#ffffff" fgColor="#07090c" level="M" className="h-44 w-44 lg:h-64 lg:w-64" />
             </div>
             <p className="mt-2 break-all text-center text-xs text-night-300">{link}</p>
             <p
@@ -113,16 +96,26 @@ export function InviteCard() {
               }`}
             >
               {reach === 'online'
-                ? '🌍 Works on any Wi-Fi or mobile data'
+                ? 'Works on any Wi-Fi or mobile data'
                 : reach === 'wifi'
-                  ? info?.onlinePending
-                    ? '📶 Same Wi-Fi only for now — online link is starting…'
-                    : '📶 Phones must be on the same Wi-Fi as this computer'
+                  ? 'Local test: phones need to be on the same Wi-Fi as this computer'
                   : ''}
             </p>
           </motion.div>
         )}
       </AnimatePresence>
+      {isHost ? (
+        <div className="mt-3 border-t border-white/[0.06] pt-1">
+          <Toggle
+            checked={room.locked}
+            onChange={(v) => void send('room:setLocked', { locked: v })}
+            label={room.locked ? 'Room locked' : 'Lock room'}
+            description={room.locked ? 'Nobody new can join. Players already here can still rejoin.' : 'Stop new players from joining.'}
+          />
+        </div>
+      ) : (
+        room.locked && <p className="mt-3 text-center text-xs font-semibold text-gold">The host has locked this room</p>
+      )}
     </div>
   );
 }
@@ -146,8 +139,13 @@ export function Lobby() {
 
   return (
     <div className="flex flex-1 flex-col gap-5">
-      <InviteCard />
+      {/* Laptop: invite/QR on the left (easy for the room to scan), players + settings on the right. */}
+      <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:items-start">
+      <div className="lg:sticky lg:top-20">
+        <InviteCard />
+      </div>
 
+      <div className="flex flex-col gap-5">
       <section>
         <SectionTitle
           right={
@@ -176,11 +174,25 @@ export function Lobby() {
                         {p.ready ? <Check size={13} strokeWidth={3} /> : null}
                         {p.ready ? 'Ready' : 'Not ready'}
                       </span>
+                      {isHost && p.id !== session?.playerId && p.connected && (
+                        <ConfirmButton
+                          size="sm"
+                          variant="ghost"
+                          className="!h-8 !px-2"
+                          aria-label={`Make ${p.name} the host`}
+                          title="Make host"
+                          confirmLabel="Host?"
+                          onConfirm={() => void send('room:transferHost', { playerId: p.id })}
+                        >
+                          <Crown size={16} />
+                        </ConfirmButton>
+                      )}
                       {isHost && p.id !== session?.playerId && (
                         <ConfirmButton
                           size="sm"
                           variant="ghost"
                           className="!h-8 !px-2"
+                          title="Kick"
                           aria-label={`Kick ${p.name}`}
                           confirmLabel="Kick?"
                           onConfirm={() => void send('room:kick', { playerId: p.id })}
@@ -196,7 +208,7 @@ export function Lobby() {
           </AnimatePresence>
         </ul>
         {players.length < MIN_PLAYERS && (
-          <p className="mt-3 text-center text-sm text-night-300">Waiting for more players to join… 🎅</p>
+          <p className="mt-3 text-center text-sm text-night-300">Waiting for more players to join…</p>
         )}
       </section>
 
@@ -211,7 +223,7 @@ export function Lobby() {
           Game settings
         </SectionTitle>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
-          {settingsSummary(room.settings, connected.length).map((row) => (
+          {settingsSummary(room.settings, connected.length, room.customPack?.name).map((row) => (
             <div key={row.label} className="min-w-0">
               <dt className="text-xs text-night-400">{row.label}</dt>
               <dd className="truncate font-semibold">{row.value}</dd>
@@ -219,6 +231,8 @@ export function Lobby() {
           ))}
         </dl>
       </section>
+      </div>
+      </div>
 
       <ActionBar>
         <Button
@@ -246,7 +260,18 @@ export function Lobby() {
           >
             {startProblem ?? (readyCount < players.length ? `Start anyway (${readyCount}/${players.length} ready)` : 'Start game')}
           </Button>
-        ) : (
+        ) : null}
+        {isHost && !startProblem && (
+          <Button
+            block
+            variant="outline"
+            icon={<GraduationCap size={18} />}
+            onClick={() => void send('game:start', { practice: true })}
+          >
+            Practice round first (easy word, no points)
+          </Button>
+        )}
+        {!isHost && (
           <p className="py-2 text-center text-sm text-night-300">Waiting for the host to start the game…</p>
         )}
       </ActionBar>

@@ -7,6 +7,7 @@ import type {
   Ack,
   ClientToServerEvents,
   ServerToClientEvents,
+  DisplaySession,
   SessionInfo,
   StateEnvelope,
 } from '@imposter/shared';
@@ -79,18 +80,19 @@ async function until(cond: () => boolean, ms = 3000): Promise<void> {
   }
 }
 
+/** A room screen creates an empty room; then n players join. The first to join is the host. */
 async function setupRoom(n: number) {
-  const host = await connect();
-  const session = await ok<SessionInfo>(host, 'room:create', { name: 'Host', avatar: '🎅' });
-  const players = [host];
-  const sessions = [session];
-  for (let i = 1; i < n; i++) {
+  const screen = await connect();
+  const display = await ok<DisplaySession>(screen, 'room:create', {});
+  const players: TestClient[] = [];
+  const sessions: SessionInfo[] = [];
+  for (let i = 0; i < n; i++) {
     const c = await connect();
-    sessions.push(await ok<SessionInfo>(c, 'room:join', { code: session.code, name: `P${i}`, avatar: '🦌' }));
+    sessions.push(await ok<SessionInfo>(c, 'room:join', { code: display.code, name: i === 0 ? 'Host' : `P${i}`, avatar: '🦌' }));
     players.push(c);
   }
   await until(() => players.every((p) => p.latest?.room.players.length === n));
-  return { host, players, sessions, code: session.code };
+  return { host: players[0], players, sessions, code: display.code, screen, display };
 }
 
 describe('socket integration', () => {
@@ -249,12 +251,14 @@ describe('socket integration', () => {
     await until(() => host.latest!.room.phase === 'VOTE_RESULTS');
     expect(host.latest!.room.match!.lastResult!.roles[grinchId]).toBe('GRINCH');
     await ok(host, 'game:continue', { phaseSeq: host.latest!.room.phaseSeq });
-    await until(() => grinch.latest!.me.canGuess);
-    // Someone else cannot guess on the Grinch's behalf.
-    const forged = await emit(players.find((p) => p !== grinch)!, 'game:submitGuess', { guess: word });
+    await until(() => grinch.latest!.me.isGuessing);
+    // The Grinch says the guess out loud. They can't confirm their own guess…
+    const seq = grinch.latest!.room.phaseSeq;
+    const forged = await emit(grinch, 'game:judgeGuess', { correct: true, phaseSeq: seq });
     expect(forged.ok).toBe(false);
-    const guess = await ok<{ correct: boolean }>(grinch, 'game:submitGuess', { guess: word.toLowerCase() });
-    expect(guess.correct).toBe(true);
+    // …an Elf (who knows the word) taps "Correct".
+    const judge = players.find((p) => p.latest!.me.canJudge)!;
+    await ok(judge, 'game:judgeGuess', { correct: true, phaseSeq: seq });
     await until(() => host.latest!.room.phase === 'ROUND_RESULTS');
     const results = host.latest!.room.match!.results!;
     expect(results.winner).toBe('GRINCHES');
@@ -268,5 +272,24 @@ describe('socket integration', () => {
     expect(host.latest!.room.match!.number).toBe(2);
     expect(host.latest!.room.players.find((p) => p.id === grinchId)!.score).toBe(6);
     expect(store.get(code)).toBeDefined();
+  });
+
+  it('the room screen sees public state only and survives a refresh', async () => {
+    const { screen, display, players, code } = await setupRoom(4);
+    await until(() => screen.latest?.room.players.length === 4);
+    expect(screen.latest!.viewer).toBe('display');
+    expect(screen.latest!.room.hostId).toBe(players[0].latest!.me.playerId);
+    await ok(players[0], 'game:start', {});
+    await until(() => screen.latest?.room.phase === 'ROLE_REVEAL');
+    const word = players.find((p) => p.latest?.me.role === 'ELF')!.latest!.me.word!;
+    for (const msg of screen.raw) expect(msg).not.toContain(word);
+    expect(screen.latest!.me.role).toBeNull();
+    // Screen refresh: reconnect with the display token.
+    screen.socket.disconnect();
+    const again = await connect();
+    await ok(again, 'room:watch', { code, displayToken: display.displayToken });
+    await until(() => again.latest?.room.phase === 'ROLE_REVEAL');
+    const bad = await emit(await connect(), 'room:watch', { code, displayToken: 'x'.repeat(32) });
+    expect(bad.ok).toBe(false);
   });
 });

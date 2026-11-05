@@ -14,6 +14,7 @@ import {
   type GameSettings,
 } from '@imposter/shared';
 import { useRoom } from '../state/GameProvider';
+import { CustomPackSheet } from './CustomPackSheet';
 import { Segmented, Sheet, Toggle } from './ui';
 
 const secondsLabel = (s: number) => (s === 0 ? 'Off' : `${s}s`);
@@ -30,15 +31,25 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
     DISCUSSION_PRESETS.includes(s.discussionSeconds) ? '' : String(s.discussionSeconds),
   );
 
+  const [packOpen, setPackOpen] = useState(false);
+  const customOn = s.categories.includes('custom');
+
+  // "Random Mix" = every built-in category. The custom pack can be mixed with anything.
   const toggleCategory = (id: CategoryId) => {
-    if (id === 'random') return update({ categories: ['random'] });
+    if (id === 'custom') {
+      if (!room.customPack) return setPackOpen(true);
+      const next = customOn ? s.categories.filter((c) => c !== 'custom') : [...s.categories, 'custom' as const];
+      return update({ categories: next.length ? next : ['random'] });
+    }
+    if (id === 'random') return update({ categories: customOn ? ['random', 'custom'] : ['random'] });
     const current = s.categories.filter((c) => c !== 'random');
     const next = current.includes(id) ? current.filter((c) => c !== id) : [...current, id];
     update({ categories: next.length ? next : ['random'] });
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title={isHost ? 'Game Settings' : 'Game Settings (view only)'}>
+    <>
+    <Sheet open={open && !packOpen} onClose={onClose} title={isHost ? 'Game Settings' : 'Game Settings (view only)'}>
       {matchLive && (
         <p className="mb-4 rounded-2xl bg-gold/10 px-4 py-3 text-sm text-gold">
           A match is in progress. Changes apply from the next match.
@@ -105,11 +116,20 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
                     on ? 'bg-elf/20 text-elf-light ring-1 ring-elf/50' : 'bg-white/[0.05] text-night-300'
                   }`}
                 >
-                  {c.emoji} {c.name}
+                  {c.id === 'custom' ? (room.customPack ? `${room.customPack.name} (${room.customPack.count})` : 'Custom pack (add words)') : c.name}
                 </button>
               );
             })}
           </div>
+          {isHost && (
+            <button
+              type="button"
+              onClick={() => setPackOpen(true)}
+              className="mt-2.5 text-sm font-bold text-gold underline-offset-4 hover:underline"
+            >
+              {room.customPack ? 'Edit your custom word pack' : '+ Make your own word pack'}
+            </button>
+          )}
         </Section>
 
         <Section title="Voting system">
@@ -197,7 +217,7 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
               checked={s.finalGuessEnabled}
               onChange={(v) => update({ finalGuessEnabled: v })}
               label="Final word guess"
-              description="A caught Grinch gets one guess at the word. Correct = Grinches win."
+              description="A caught Grinch says one guess out loud. If an Elf confirms it, the Grinches win."
             />
             <Toggle
               checked={s.allowSkipVote}
@@ -206,10 +226,10 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
               description="If Skip gets the most votes, nobody is eliminated."
             />
             <Toggle
-              checked={s.categoryHintForGrinch}
-              onChange={(v) => update({ categoryHintForGrinch: v })}
-              label="Category hint for Grinches"
-              description="Grinches see the word's category."
+              checked={s.grinchHint}
+              onChange={(v) => update({ grinchHint: v })}
+              label="Hint word for Grinches"
+              description="Every Grinch gets the same hint word, e.g. “Oven” for Cookies."
             />
             <Toggle
               checked={s.autoAdvance}
@@ -233,6 +253,8 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
         </Section>
       </fieldset>
     </Sheet>
+    <CustomPackSheet open={packOpen} onClose={() => setPackOpen(false)} />
+    </>
   );
 }
 
@@ -254,7 +276,7 @@ function StepButton({ children, onClick, label }: { children: React.ReactNode; o
 }
 
 /** One-line summary of the room's settings for the lobby. */
-export function settingsSummary(s: GameSettings, players: number): { label: string; value: string }[] {
+export function settingsSummary(s: GameSettings, players: number, customPackName?: string): { label: string; value: string }[] {
   return [
     { label: 'Mode', value: 'Classic' },
     {
@@ -263,7 +285,12 @@ export function settingsSummary(s: GameSettings, players: number): { label: stri
     },
     {
       label: 'Words',
-      value: s.categories.includes('random') ? 'Random Mix' : s.categories.map(categoryName).join(', '),
+      value: [
+        s.categories.includes('random') ? 'Random Mix' : s.categories.filter((c) => c !== 'custom').map(categoryName).join(', '),
+        s.categories.includes('custom') ? (customPackName ?? 'Custom Pack') : '',
+      ]
+        .filter(Boolean)
+        .join(' + '),
     },
     { label: 'Voting', value: s.votingSystem === 'ELIMINATION' ? 'Elimination' : 'Single vote' },
     { label: 'Discussion', value: s.discussionSeconds ? `${s.discussionSeconds}s` : 'No timer' },

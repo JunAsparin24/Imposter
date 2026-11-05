@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SCORING, TIMING } from '@imposter/shared';
 import { GameError } from '../src/game/Room';
-import { isCorrectGuess } from '../src/game/wordBank';
 import {
   continueResults,
   elves,
@@ -31,15 +30,15 @@ function everyoneVotes(t: ReturnType<typeof makeRoom>, target: string) {
 }
 
 describe('word bank', () => {
-  it('has at least 50 words in every category', () => {
-    for (const c of words.categories()) expect(words.count(c)).toBeGreaterThanOrEqual(50);
-  });
-  it('matches guesses case-insensitively with authored aliases only', () => {
-    const entry = { word: 'Hot Chocolate', aliases: ['Hot Cocoa'], category: 'food' as const };
-    expect(isCorrectGuess(entry, '  hot CHOCOLATE ')).toBe(true);
-    expect(isCorrectGuess(entry, 'hot cocoa')).toBe(true);
-    expect(isCorrectGuess(entry, 'hot choc')).toBe(false);
-    expect(isCorrectGuess(entry, '')).toBe(false);
+  it('has 20+ words in every category, each with a hint that does not give the word away', () => {
+    for (const c of words.categories()) {
+      expect(words.count(c)).toBeGreaterThanOrEqual(20);
+      for (const w of words.words(c)) {
+        expect(w.hint, w.word).toBeTruthy();
+        expect(w.word.toLowerCase().includes(w.hint.toLowerCase()), w.word).toBe(false);
+      }
+    }
+    expect(words.practice().length).toBeGreaterThanOrEqual(10);
   });
 });
 
@@ -111,11 +110,21 @@ describe('role privacy', () => {
     expect(t.room.privateState(grinches(t)[0]).teammates).toEqual([]);
   });
 
-  it('shows the category to Grinches only when the hint is enabled', () => {
-    const t = makeRoom(4, { categoryHintForGrinch: true });
+  it('every Grinch gets the same hint word; Elves and the public never see it', () => {
+    const t = makeRoom(10, { grinchCount: 3, grinchHint: true });
     t.room.startMatch(t.host);
+    const hint = t.room.match!.word.hint;
+    for (const id of grinches(t)) {
+      expect(t.room.privateState(id).hint).toBe(hint);
+      expect(t.room.privateState(id).word).toBeNull();
+    }
+    for (const id of elves(t)) expect(t.room.privateState(id).hint).toBeNull();
+    expect(JSON.stringify(t.room.publicState())).not.toContain(`"${hint}"`);
+    const off = makeRoom(4, { grinchHint: false });
+    off.room.startMatch(off.host);
+    expect(off.room.privateState(grinches(off)[0]).hint).toBeNull();
     const me = t.room.privateState(grinches(t)[0]);
-    expect(me.category).not.toBeNull();
+    expect(me.category).toBeNull();
     expect(me.word).toBeNull();
   });
 
@@ -311,11 +320,16 @@ describe('win conditions and final guess', () => {
     expect(res.roles[g]).toBe('GRINCH');
     continueResults(t);
     expect(t.room.phase).toBe('FINAL_GUESS');
-    expect(t.room.privateState(g).canGuess).toBe(true);
+    expect(t.room.privateState(g).isGuessing).toBe(true);
+    expect(t.room.privateState(g).canJudge).toBe(false);
     const elf = elves(t)[0];
-    expectError(() => t.room.submitGuess(elf, 'anything'), 'NOT_ALLOWED');
-    expect(t.room.submitGuess(g, 'definitely not the word xyz')).toEqual({ correct: false });
-    expectError(() => t.room.submitGuess(g, 'again'), 'WRONG_PHASE');
+    expect(t.room.privateState(elf).canJudge).toBe(true);
+    const seq0 = t.room.phaseSeq;
+    // The Grinch said their guess out loud; only an Elf may judge it.
+    expectError(() => t.room.judgeGuess(g, seq0, true), 'NOT_ALLOWED');
+    t.room.judgeGuess(elf, seq0, false);
+    // A second Elf tapping at the same moment doesn't count twice.
+    expectError(() => t.room.judgeGuess(elves(t)[1], seq0, true), 'WRONG_PHASE');
     const pub = t.room.publicState();
     expect(pub.phase).toBe('ROUND_RESULTS');
     expect(pub.match!.results!.winner).toBe('ELVES');
@@ -336,8 +350,7 @@ describe('win conditions and final guess', () => {
     const [g1, g2] = grinches(t);
     everyoneVotes(t, g1);
     continueResults(t);
-    const word = t.room.match!.word.word;
-    expect(t.room.submitGuess(g1, `  ${word.toUpperCase()} `)).toEqual({ correct: true });
+    t.room.judgeGuess(elves(t)[0], t.room.phaseSeq, true);
     const pub = t.room.publicState();
     expect(pub.match!.results!.winner).toBe('GRINCHES');
     expect(pub.match!.results!.reason).toBe('FINAL_GUESS');
@@ -451,5 +464,96 @@ describe('across matches', () => {
     const t = makeRoom(3);
     t.room.removePlayer(t.host);
     expect(t.room.hostId).toBe(t.ids[1]);
+  });
+});
+
+describe('phase 2: custom packs, host controls, stats', () => {
+  const lines = ['Tinsel Toast', 'Candy Volcano | volcano', 'Snow Taco', 'snow taco', '', 'Jingle Pizza'];
+
+  it('custom words are used, labelled with the pack name, and never made public', () => {
+    const t = makeRoom(4, { categories: ['custom'] });
+    expectError(() => t.room.setCustomPack(t.ids[1], 'Nope', lines), 'NOT_HOST');
+    expect(t.room.setCustomPack(t.host, 'Family Jokes', lines)).toEqual({ count: 4 }); // duplicate + blank dropped
+    t.room.startMatch(t.host);
+    const word = t.room.match!.word.word;
+    expect(['Tinsel Toast', 'Candy Volcano', 'Snow Taco', 'Jingle Pizza']).toContain(word);
+    const elf = elves(t).find((id) => id !== t.host) ?? elves(t)[0];
+    expect(t.room.privateState(elf).categoryName).toBe('Family Jokes');
+    const pub = JSON.stringify(t.room.publicState());
+    for (const w of ['Tinsel Toast', 'Candy Volcano', 'Snow Taco', 'Jingle Pizza']) expect(pub).not.toContain(w);
+    expect(t.room.publicState().customPack).toEqual({ name: 'Family Jokes', count: 4 });
+    // Only the host gets the pack back (for editing).
+    expect(t.room.privateState(t.host).customPackLines).toContain('Candy Volcano | volcano');
+    expect(t.room.privateState(t.ids[1]).customPackLines).toBeNull();
+  });
+
+  it('rejects tiny packs and starting with an empty custom category', () => {
+    const t = makeRoom(4, { categories: ['custom'] });
+    expectError(() => t.room.setCustomPack(t.host, 'x', ['One', 'Two']), 'INVALID_INPUT');
+    expectError(() => t.room.startMatch(t.host), 'INVALID_SETTINGS');
+    t.room.setCustomPack(t.host, 'x', lines);
+    t.room.setCustomPack(t.host, 'x', []); // clearing removes the custom category too
+    expect(t.room.settings.categories).toEqual(['random']);
+  });
+
+  it('a locked room blocks new players; the host can hand over hosting', () => {
+    const t = makeRoom(3);
+    expectError(() => t.room.setLocked(t.ids[1], true), 'NOT_HOST');
+    t.room.setLocked(t.host, true);
+    expectError(() => t.room.addPlayer('Late', '🎅'), 'ROOM_LOCKED');
+    t.room.setLocked(t.host, false);
+    t.room.addPlayer('Late', '🎅');
+    t.room.transferHost(t.host, t.ids[2]);
+    expect(t.room.hostId).toBe(t.ids[2]);
+    expectError(() => t.room.startMatch(t.host), 'NOT_HOST');
+  });
+
+  it('tracks elf/grinch wins and times voted out', () => {
+    const t = makeRoom(4, { finalGuessEnabled: false });
+    startToClues(t);
+    toVoting(t);
+    const [g] = grinches(t);
+    everyoneVotes(t, g);
+    continueResults(t);
+    const pub = t.room.publicState();
+    const gs = pub.players.find((p) => p.id === g)!.stats;
+    expect(gs).toMatchObject({ matchesPlayed: 1, grinchMatches: 1, grinchWins: 0, timesVotedOut: 1 });
+    const es = pub.players.find((p) => p.id === elves(t)[0])!.stats;
+    expect(es).toMatchObject({ wins: 1, elfWins: 1, correctVotes: 1, timesVotedOut: 0 });
+  });
+});
+
+describe('room screen and practice round', () => {
+  it('a new room starts empty; the first player to join is the host', () => {
+    const t = makeRoom(0);
+    expect(t.room.players.size).toBe(0);
+    expect(t.room.isEmpty()).toBe(true);
+    t.room.displaySockets.add('screen');
+    expect(t.room.isEmpty()).toBe(false);
+    const first = t.room.addPlayer('First', '🎅');
+    t.room.addPlayer('Second', '🦌');
+    expect(t.room.hostId).toBe(first.id);
+    // The room screen gets public info only.
+    expect(t.room.privateState('')).toMatchObject({ role: null, word: null, hint: null, canJudge: false });
+  });
+
+  it('practice rounds use easy words and award no points or stats', () => {
+    const t = makeRoom(4, { finalGuessEnabled: false });
+    t.room.startMatch(t.host, true);
+    expect(t.room.publicState().match!.practice).toBe(true);
+    const practiceWords = words.practice().map((w) => w.word);
+    expect(practiceWords).toContain(t.room.match!.word.word);
+    for (const id of t.room.match!.participantIds) t.room.acknowledgeRole(id);
+    t.room.beginClues(t.host, t.room.phaseSeq);
+    toVoting(t);
+    everyoneVotes(t, grinches(t)[0]);
+    continueResults(t);
+    const pub = t.room.publicState();
+    expect(pub.match!.results!.practice).toBe(true);
+    expect(pub.players.every((p) => p.score === 0 && p.stats.matchesPlayed === 0)).toBe(true);
+    expect(pub.history).toEqual([]);
+    expect(pub.matchesPlayed).toBe(0);
+    continueResults(t); // practice → straight back to the lobby
+    expect(t.room.phase).toBe('LOBBY');
   });
 });

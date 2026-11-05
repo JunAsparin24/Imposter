@@ -21,6 +21,8 @@ interface SocketSession {
 }
 interface SocketData {
   session: SocketSession | null;
+  /** Set when this socket is a room screen (not a player). */
+  displayCode: string | null;
   ip: string;
 }
 
@@ -59,9 +61,34 @@ export function createGameServer(opts: GameServerOptions) {
     const serverNow = clock();
     for (const p of room.players.values()) {
       if (!p.socketId) continue;
-      const envelope: StateEnvelope = { serverNow, room: publicState, me: room.privateState(p.id) };
+      const envelope: StateEnvelope = { serverNow, room: publicState, me: room.privateState(p.id), viewer: 'player' };
       io.to(p.socketId).emit('game:stateUpdated', envelope);
     }
+    // Room screens only ever get public info: their private part is empty.
+    if (room.displaySockets.size > 0) {
+      const envelope: StateEnvelope = { serverNow, room: publicState, me: room.privateState(''), viewer: 'display' };
+      for (const id of room.displaySockets) io.to(id).emit('game:stateUpdated', envelope);
+    }
+  }
+
+  function unbindDisplay(socket: GameSocket): void {
+    const code = socket.data.displayCode;
+    if (!code) return;
+    socket.data.displayCode = null;
+    const room = store.get(code);
+    if (!room) return;
+    room.displaySockets.delete(socket.id);
+    socket.leave(code);
+    if (room.isEmpty()) store.delete(code);
+    else broadcast(room);
+  }
+
+  function bindDisplay(socket: GameSocket, room: Room) {
+    room.displaySockets.add(socket.id);
+    room.touch();
+    socket.data.displayCode = room.code;
+    socket.join(room.code);
+    return { code: room.code, displayToken: room.displayToken };
   }
 
   function endSession(socketId: string, reason: 'KICKED' | 'REPLACED' | 'ROOM_CLOSED', code: string): void {
@@ -97,6 +124,7 @@ export function createGameServer(opts: GameServerOptions) {
     socket.data.ip =
       opts.trustProxy && typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : socket.handshake.address;
     socket.data.session = null;
+    socket.data.displayCode = null;
 
     /** Registers a validated, rate-limited, error-safe handler. */
     function handle<S extends ZodTypeAny>(
@@ -155,20 +183,41 @@ export function createGameServer(opts: GameServerOptions) {
       }
     }
 
+    // Creating a room makes an EMPTY room. This device becomes the room screen;
+    // the first person to join becomes the host.
     handle(
       'room:create',
-      schemas.create,
-      ({ name, avatar }) => {
+      schemas.empty,
+      () => {
         ensureNotInRoom();
+        unbindDisplay(socket);
         const room = new Room(newRoomCode(), { rng, words, clock });
-        const player = room.addPlayer(name, avatar);
         store.set(room);
-        const info = bind(socket, room, player);
+        const info = bindDisplay(socket, room);
         broadcast(room);
         return info;
       },
       { joinLimited: true },
     );
+
+    handle(
+      'room:watch',
+      schemas.watch,
+      ({ code, displayToken }) => {
+        const room = store.get(code);
+        if (!room) throw new GameError('ROOM_NOT_FOUND', 'That room has closed.');
+        if (!room.isDisplayToken(displayToken)) throw new GameError('INVALID_SESSION', 'This screen is no longer linked to that room.');
+        if (socket.data.displayCode !== code) unbindDisplay(socket);
+        const info = bindDisplay(socket, room);
+        broadcast(room);
+        return info;
+      },
+      { joinLimited: true },
+    );
+
+    handle('room:unwatch', schemas.empty, () => {
+      unbindDisplay(socket);
+    });
 
     handle(
       'room:check',
@@ -190,6 +239,11 @@ export function createGameServer(opts: GameServerOptions) {
         const room = store.get(code);
         if (!room) throw new GameError('ROOM_NOT_FOUND', 'No room found with that code. Check it and try again.');
         const player = room.addPlayer(name, avatar);
+        // A room screen that joins as a player stops being a room screen.
+        if (socket.data.displayCode) {
+          room.displaySockets.delete(socket.id);
+          socket.data.displayCode = null;
+        }
         const info = bind(socket, room, player);
         broadcast(room);
         return info;
@@ -238,8 +292,15 @@ export function createGameServer(opts: GameServerOptions) {
     handle('room:updateSettings', schemas.settings, ({ settings }) =>
       act((room, id) => room.updateSettings(id, settings as Partial<GameSettings>)),
     );
+    handle('room:setCustomPack', schemas.customPack, ({ name, lines }) =>
+      act((room, id) => room.setCustomPack(id, name, lines)),
+    );
+    handle('room:transferHost', schemas.kick, ({ playerId: targetId }) =>
+      act((room, id) => room.transferHost(id, targetId)),
+    );
+    handle('room:setLocked', schemas.locked, ({ locked }) => act((room, id) => room.setLocked(id, locked)));
     handle('player:ready', schemas.ready, ({ ready }) => act((room, id) => room.setReady(id, ready)));
-    handle('game:start', schemas.empty, () => act((room, id) => room.startMatch(id)));
+    handle('game:start', schemas.start, ({ practice }) => act((room, id) => room.startMatch(id, !!practice)));
     handle('game:nextMatch', schemas.empty, () => act((room, id) => room.startMatch(id)));
     handle('game:roleAcknowledged', schemas.empty, () => act((room, id) => room.acknowledgeRole(id)));
     handle('game:beginClues', schemas.phaseSeq, ({ phaseSeq }) => act((room, id) => room.beginClues(id, phaseSeq)));
@@ -257,11 +318,20 @@ export function createGameServer(opts: GameServerOptions) {
     handle('game:continue', schemas.phaseSeq, ({ phaseSeq }) =>
       act((room, id) => room.continueFromResults(id, phaseSeq)),
     );
-    handle('game:submitGuess', schemas.guess, ({ guess }) => act((room, id) => room.submitGuess(id, guess)));
+    handle('game:judgeGuess', schemas.judge, ({ correct, phaseSeq }) =>
+      act((room, id) => room.judgeGuess(id, phaseSeq, correct)),
+    );
     handle('game:returnToLobby', schemas.empty, () => act((room, id) => room.returnToLobby(id)));
     handle('game:resetScores', schemas.empty, () => act((room, id) => room.resetScores(id)));
 
     socket.on('disconnect', () => {
+      const dc = socket.data.displayCode;
+      if (dc) {
+        // Keep the room: the screen may just be refreshing. Abandoned-room cleanup handles the rest.
+        const room = store.get(dc);
+        room?.displaySockets.delete(socket.id);
+        room?.touch();
+      }
       const s = socket.data.session;
       if (!s) return;
       const room = store.get(s.code);

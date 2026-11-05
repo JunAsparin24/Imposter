@@ -1,0 +1,12 @@
+{
+  "id": "clothing",
+  "words": [
+    ["Scarf", "Neck"], ["Mittens", "Hands"], ["Gloves", "Fingers"], ["Beanie", "Knit"],
+    ["Earmuffs", "Ears"], ["Boots", "Snow"], ["Jacket", "Zipper"], ["Ugly Sweater", "Funny"],
+    ["Hoodie", "Comfy"], ["Snow Pants", "Legs"], ["Raincoat", "Wet"], ["Umbrella", "Rain"],
+    ["Santa Suit", "Costume"], ["Onesie", "One piece"], ["Goggles", "Eyes"], ["Bathrobe", "Towel"],
+    ["Coat", "Hanger"], ["Tie", "Formal"], ["Dress", "Twirl"], ["Jeans", "Pants"],
+    ["Swimsuit", "Pool"], ["Sneakers", "Running"], ["Pajama Pants", "Bed"], ["T-Shirt", "Sleeves"],
+    ["Shorts", "Summer"], ["Belt", "Buckle"]
+  ]
+}

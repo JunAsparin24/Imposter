@@ -6,42 +6,43 @@ import type { Rng } from './rng';
 
 export interface WordEntry {
   word: string;
-  /** Explicitly authored alternative answers accepted for the final guess. */
-  aliases: string[];
-  category: CategoryId;
+  /** One related word shown to every Grinch (the same hint for all of them). '' = no hint. */
+  hint: string;
+  category: CategoryId | 'practice';
 }
 
-type RawWord = string | { word: string; aliases?: string[] };
+type RawWord = [string, string];
 
 const WORDS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'words');
 
 /**
- * Loads the local JSON word packs (one file per category, see src/words).
+ * Loads the local JSON word packs (one file per category, see src/words). Each entry is
+ * `[word, hint]`. `practice.json` holds the easy everyday words for practice rounds.
  * Adding a category = drop a new JSON file in and register its id in shared/constants.
  */
 export class WordBank {
   private readonly byCategory = new Map<CategoryId, WordEntry[]>();
+  private practiceWords: WordEntry[] = [];
 
   constructor(dir: string = WORDS_DIR) {
     for (const file of readdirSync(dir)) {
-      if (!file.endsWith('.json') || file.startsWith('undercover')) continue;
-      const data = JSON.parse(readFileSync(join(dir, file), 'utf8')) as { id: CategoryId; words: RawWord[] };
-      if (!CATEGORY_IDS.includes(data.id) || data.id === 'random') {
+      if (!file.endsWith('.json')) continue;
+      const data = JSON.parse(readFileSync(join(dir, file), 'utf8')) as { id: string; words: RawWord[] };
+      const isPractice = data.id === 'practice';
+      if (!isPractice && (!CATEGORY_IDS.includes(data.id as CategoryId) || data.id === 'random' || data.id === 'custom')) {
         throw new Error(`Unknown word category "${data.id}" in ${file}`);
       }
       const seen = new Set<string>();
       const entries: WordEntry[] = [];
       for (const raw of data.words) {
-        const entry: WordEntry =
-          typeof raw === 'string'
-            ? { word: raw, aliases: [], category: data.id }
-            : { word: raw.word, aliases: raw.aliases ?? [], category: data.id };
-        const key = normalizeWord(entry.word);
+        if (!Array.isArray(raw) || typeof raw[0] !== 'string') throw new Error(`Bad entry in ${file}: ${JSON.stringify(raw)}`);
+        const key = normalizeWord(raw[0]);
         if (!key || seen.has(key)) continue; // skip empty/duplicate entries
         seen.add(key);
-        entries.push(entry);
+        entries.push({ word: raw[0], hint: raw[1] ?? '', category: isPractice ? 'practice' : (data.id as CategoryId) });
       }
-      this.byCategory.set(data.id, entries);
+      if (isPractice) this.practiceWords = entries;
+      else this.byCategory.set(data.id as CategoryId, entries);
     }
   }
 
@@ -53,13 +54,23 @@ export class WordBank {
     return this.byCategory.get(category)?.length ?? 0;
   }
 
-  /** All candidate words for a selection ('random' = every category), de-duplicated by word. */
-  pool(categories: CategoryId[]): WordEntry[] {
-    const ids = categories.includes('random') || categories.length === 0 ? this.categories() : categories;
+  words(category: CategoryId): WordEntry[] {
+    return [...(this.byCategory.get(category) ?? [])];
+  }
+
+  practice(): WordEntry[] {
+    return [...this.practiceWords];
+  }
+
+  /** All candidate words for a selection ('random' = every built-in category), de-duplicated by word. */
+  pool(categories: CategoryId[], custom: WordEntry[] = []): WordEntry[] {
+    const builtIn = categories.filter((c) => c !== 'custom');
+    const ids = categories.includes('random') || categories.length === 0 ? this.categories() : builtIn;
     const seen = new Set<string>();
     const out: WordEntry[] = [];
-    for (const id of ids) {
-      for (const entry of this.byCategory.get(id) ?? []) {
+    const sources = [...ids.map((id) => this.byCategory.get(id) ?? []), categories.includes('custom') ? custom : []];
+    for (const list of sources) {
+      for (const entry of list) {
         const key = normalizeWord(entry.word);
         if (seen.has(key)) continue;
         seen.add(key);
@@ -70,19 +81,19 @@ export class WordBank {
   }
 
   /** Picks a word, avoiding `recent` (normalised words) when possible. */
-  pick(categories: CategoryId[], recent: Iterable<string>, rng: Rng): WordEntry {
-    const all = this.pool(categories);
-    if (all.length === 0) throw new Error('No words available for the selected categories');
-    const recentSet = new Set(recent);
-    const fresh = all.filter((w) => !recentSet.has(normalizeWord(w.word)));
-    const pool = fresh.length > 0 ? fresh : all;
-    return pool[rng.int(pool.length)];
+  pick(categories: CategoryId[], recent: Iterable<string>, rng: Rng, custom: WordEntry[] = []): WordEntry {
+    return pickFrom(this.pool(categories, custom), recent, rng);
+  }
+
+  pickPractice(recent: Iterable<string>, rng: Rng): WordEntry {
+    return pickFrom(this.practiceWords, recent, rng);
   }
 }
 
-/** True when the guess matches the secret word or one of its authored aliases (no fuzzy matching). */
-export function isCorrectGuess(entry: WordEntry, guess: string): boolean {
-  const g = normalizeWord(guess);
-  if (!g) return false;
-  return [entry.word, ...entry.aliases].some((w) => normalizeWord(w) === g);
+function pickFrom(all: WordEntry[], recent: Iterable<string>, rng: Rng): WordEntry {
+  if (all.length === 0) throw new Error('No words available for the selected categories');
+  const recentSet = new Set(recent);
+  const fresh = all.filter((w) => !recentSet.has(normalizeWord(w.word)));
+  const pool = fresh.length > 0 ? fresh : all;
+  return pool[rng.int(pool.length)];
 }

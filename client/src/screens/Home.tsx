@@ -1,15 +1,15 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, LogIn, Sparkles, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, LogIn, Plus, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { AVATARS, NAME_MAX_LENGTH, ROOM_CODE_LENGTH, type RoomCheckResult } from '@imposter/shared';
-import { Logo } from '../components/decor';
+import { AVATAR_LABELS, AVATARS, NAME_MAX_LENGTH, ROOM_CODE_LENGTH, type RoomCheckResult } from '@imposter/shared';
+import { AvatarImg, Logo } from '../components/decor';
 import { HowToPlay } from '../components/HowToPlay';
 import { Button, Spinner } from '../components/ui';
 import { emitAck } from '../lib/socket';
 import { loadProfile } from '../lib/storage';
 import { useGame } from '../state/GameProvider';
 
-type Mode = 'home' | 'create' | 'join';
+type Mode = 'home' | 'join';
 
 function codeFromUrl(): string {
   try {
@@ -20,17 +20,38 @@ function codeFromUrl(): string {
   }
 }
 
-export function Home() {
-  const { prefs, setPrefs, status } = useGame();
-  const [initialCode] = useState(codeFromUrl);
+/**
+ * Landing page. "Create Room" makes an empty room and turns this device into the room screen;
+ * "Join Room" asks for a name, avatar and code. `joinCode` opens the join form directly
+ * (used when the room screen wants to join its own room as a player).
+ */
+export function Home({ joinCode, onBack }: { joinCode?: string; onBack?: () => void } = {}) {
+  const { prefs, setPrefs, status, createRoom, toast } = useGame();
+  const [initialCode] = useState(() => joinCode ?? codeFromUrl());
   const [mode, setMode] = useState<Mode>(initialCode ? 'join' : 'home');
+  const [creating, setCreating] = useState(false);
+  const [slowConnect, setSlowConnect] = useState(false);
+  useEffect(() => {
+    if (status === 'connected') return setSlowConnect(false);
+    const t = setTimeout(() => setSlowConnect(true), 6000);
+    return () => clearTimeout(t);
+  }, [status]);
+
+  const create = async () => {
+    setCreating(true);
+    const res = await createRoom();
+    setCreating(false);
+    if (!res.ok) toast(res.error.message, 'error');
+  };
+  const back = () => (onBack ? onBack() : setMode('home'));
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 pt-safe pb-safe">
-      <div className="flex h-14 items-center justify-between">
-        {mode !== 'home' ? (
+    <div className="flex min-h-dvh w-full flex-col pt-safe pb-safe">
+      {/* Top bar spans the whole screen, so on a computer the sound button sits in the corner. */}
+      <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4 lg:h-20 lg:px-8">
+        {mode !== 'home' || onBack ? (
           <button
-            onClick={() => setMode('home')}
+            onClick={back}
             className="flex h-10 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-night-300 hover:text-snow"
           >
             <ArrowLeft size={18} /> Back
@@ -54,39 +75,43 @@ export function Home() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, y: -10 }}
-            className="flex flex-1 flex-col"
+            className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 lg:grid lg:max-w-6xl lg:grid-cols-2 lg:items-center lg:gap-16 lg:px-8"
           >
-            <div className="flex flex-1 flex-col items-center justify-center py-8">
-              <motion.div
-                animate={{ rotate: [0, -6, 6, 0] }}
-                transition={{ repeat: Infinity, duration: 5, ease: 'easeInOut' }}
-                className="mb-3 text-5xl"
-                aria-hidden
-              >
-                🎄
-              </motion.div>
-              <Logo />
-              <p className="mt-4 max-w-xs text-center text-[15px] leading-relaxed text-night-300">
-                Everyone knows the secret word… except the <b className="text-grinch">Grinch</b>. Find them before Christmas is ruined.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <Button size="lg" variant="grinch" block icon={<Sparkles size={20} />} onClick={() => setMode('create')} disabled={status !== 'connected'}>
-                Create Room
-              </Button>
-              <Button size="lg" variant="elf" block icon={<LogIn size={20} />} onClick={() => setMode('join')} disabled={status !== 'connected'}>
-                Join Room
-              </Button>
-              {status !== 'connected' && (
-                <p className="flex items-center justify-center gap-2 text-center text-sm text-night-300" role="status">
-                  <Spinner /> Connecting to the North Pole…
+            {/* Left on computers: logo + buttons. */}
+            <div className="flex flex-1 flex-col lg:flex-none">
+              <div className="flex flex-1 flex-col items-center justify-center py-8 lg:flex-none lg:py-0">
+                <Logo />
+                <p className="mt-4 max-w-xs text-center text-[15px] leading-relaxed text-night-300 lg:max-w-sm lg:text-base">
+                  Everyone gets the secret word except the <b className="text-grinch">Grinch</b>. Give clues, spot the faker, vote them out.
                 </p>
-              )}
+              </div>
+
+              <div className="mx-auto flex w-full max-w-md flex-col gap-3 lg:mt-10">
+                <Button size="lg" variant="grinch" block icon={<Plus size={20} />} onClick={create} loading={creating} disabled={status !== 'connected'}>
+                  Create Room
+                </Button>
+                <Button size="lg" variant="elf" block icon={<LogIn size={20} />} onClick={() => setMode('join')} disabled={status !== 'connected'}>
+                  Join Room
+                </Button>
+                <p className="text-center text-xs text-night-400">
+                  Creating a room turns this screen into the room display. Everyone (you too) joins on their own phone.
+                </p>
+                {status !== 'connected' && (
+                  <div className="text-center text-sm text-night-300" role="status">
+                    <p className="flex items-center justify-center gap-2">
+                      <Spinner /> Connecting…
+                    </p>
+                    {slowConnect && (
+                      <p className="mt-2 text-xs text-gold">Taking a while… Check your internet connection and try refreshing.</p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <section className="mt-10 pb-4" aria-labelledby="how-to-play">
-              <h2 id="how-to-play" className="heading mb-3 text-center text-xl">
+            {/* Right on computers (below on phones): how to play. */}
+            <section className="mt-10 pb-4 lg:mt-0 lg:max-h-[calc(100dvh-8rem)] lg:overflow-y-auto lg:pr-2" aria-labelledby="how-to-play">
+              <h2 id="how-to-play" className="heading mb-3 text-center text-xl lg:text-left">
                 How to play
               </h2>
               <HowToPlay />
@@ -98,9 +123,9 @@ export function Home() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="flex flex-1 flex-col"
+            className="mx-auto flex w-full max-w-md flex-1 flex-col px-4"
           >
-            <EntryForm mode={mode} initialCode={initialCode} />
+            <EntryForm initialCode={initialCode} />
           </motion.main>
         )}
       </AnimatePresence>
@@ -108,8 +133,8 @@ export function Home() {
   );
 }
 
-function EntryForm({ mode, initialCode }: { mode: 'create' | 'join'; initialCode: string }) {
-  const { createRoom, joinRoom, status } = useGame();
+function EntryForm({ initialCode }: { initialCode: string }) {
+  const { joinRoom, status } = useGame();
   const profile = loadProfile();
   const [name, setName] = useState(profile?.name ?? '');
   const [avatar, setAvatar] = useState<string>(profile?.avatar ?? AVATARS[Math.floor(Math.random() * AVATARS.length)]);
@@ -121,7 +146,7 @@ function EntryForm({ mode, initialCode }: { mode: 'create' | 'join'; initialCode
   // Validate the room code with the server as soon as it's complete.
   useEffect(() => {
     setCheck(null);
-    if (mode !== 'join' || code.length !== ROOM_CODE_LENGTH || status !== 'connected') return;
+    if (code.length !== ROOM_CODE_LENGTH || status !== 'connected') return;
     let cancelled = false;
     void emitAck<RoomCheckResult>('room:check', { code }).then((res) => {
       if (!cancelled && res.ok) setCheck(res.data);
@@ -130,13 +155,15 @@ function EntryForm({ mode, initialCode }: { mode: 'create' | 'join'; initialCode
       cancelled = true;
     };
     // Re-check once the socket connects (invite links open before the connection is up).
-  }, [code, mode, status]);
+  }, [code, status]);
 
   const codeProblem =
     check && !check.joinable
       ? check.reason === 'ROOM_NOT_FOUND'
         ? 'No room with that code.'
-        : check.reason === 'ROOM_FULL'
+        : check.reason === 'ROOM_LOCKED'
+          ? 'The host has locked that room.'
+          : check.reason === 'ROOM_FULL'
           ? 'That room is full.'
           : 'A game is in progress in that room. Wait for the match to end.'
       : null;
@@ -145,9 +172,9 @@ function EntryForm({ mode, initialCode }: { mode: 'create' | 'join'; initialCode
     e.preventDefault();
     setError(null);
     if (!name.trim()) return setError('Enter a display name.');
-    if (mode === 'join' && code.length !== ROOM_CODE_LENGTH) return setError('Room codes are 6 characters.');
+    if (code.length !== ROOM_CODE_LENGTH) return setError('Room codes are 6 characters.');
     setBusy(true);
-    const res = mode === 'create' ? await createRoom(name.trim(), avatar) : await joinRoom(code, name.trim(), avatar);
+    const res = await joinRoom(code, name.trim(), avatar);
     setBusy(false);
     if (!res.ok) {
       setError(res.error.message);
@@ -163,13 +190,13 @@ function EntryForm({ mode, initialCode }: { mode: 'create' | 'join'; initialCode
   return (
     <form onSubmit={submit} className="flex flex-1 flex-col gap-6 pt-2">
       <div>
-        <h1 className="heading text-3xl">{mode === 'create' ? 'Create a room' : 'Join a room'}</h1>
+        <h1 className="heading text-3xl">Join a room</h1>
         <p className="mt-1 text-sm text-night-300">
-          {mode === 'create' ? "You'll be the host. Friends join with your room code." : 'Ask the host for the 6-character room code.'}
+          Enter the 6-character code shown on the room screen. The first person to join is the host.
         </p>
       </div>
 
-      {mode === 'join' && (
+      {(
         <label className="block">
           <span className="label">Room code</span>
           <input
@@ -211,13 +238,13 @@ function EntryForm({ mode, initialCode }: { mode: 'create' | 'join'; initialCode
               key={a}
               type="button"
               onClick={() => setAvatar(a)}
-              aria-label={`Avatar ${a}`}
+              aria-label={`Avatar: ${AVATAR_LABELS[a]}`}
               aria-pressed={avatar === a}
               className={`grid aspect-square place-items-center rounded-2xl text-2xl transition ${
                 avatar === a ? 'scale-105 bg-gold/15 ring-2 ring-gold' : 'bg-white/[0.04] hover:bg-white/[0.08]'
               }`}
             >
-              {a}
+              <AvatarImg id={a} size={44} className="max-w-[80%]" />
             </button>
           ))}
         </div>
@@ -234,13 +261,13 @@ function EntryForm({ mode, initialCode }: { mode: 'create' | 'join'; initialCode
           type="submit"
           size="lg"
           block
-          variant={mode === 'create' ? 'grinch' : 'elf'}
+          variant="elf"
           loading={busy}
-          disabled={status !== 'connected' || (mode === 'join' && !!codeProblem)}
+          disabled={status !== 'connected' || !!codeProblem}
         >
-          {mode === 'create' ? 'Create Room' : 'Join Room'}
+          Join Room
         </Button>
-        {status !== 'connected' && <p className="mt-2 text-center text-sm text-grinch-light">No connection — check your internet.</p>}
+        {status !== 'connected' && <p className="mt-2 text-center text-sm text-grinch-light">No connection. Check your internet.</p>}
       </div>
     </form>
   );

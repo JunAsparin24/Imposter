@@ -1,15 +1,12 @@
 {
   "id": "decorations",
   "words": [
-    "Ornament", "Tinsel", "Garland", "Wreath", "Stocking",
-    "Mistletoe", "Christmas Star", "Tree Topper Angel", "Nutcracker", "Snow Globe",
-    "Christmas Lights", "Ribbon", "Gift Bow", "Wrapping Paper", "Gift Tag",
-    "Sleigh Bells", "Candle", "Holly", "Poinsettia", "Pine Cone",
-    "Christmas Tree", "Tree Skirt", "Nativity Scene", "Candy Dish", "Advent Wreath",
-    "Christmas Card", "Christmas Cracker", "Gingerbread Village", "Paper Snowflake", "Icicle Lights",
-    "Inflatable Snowman", "Ugly Christmas Sweater", "Santa Hat", "Reindeer Antlers", "Fake Snow",
-    "Light-Up Reindeer", "Door Wreath", "Mantelpiece", "Popcorn Garland", "Tree Stand",
-    "Bauble", "Fairy Lights", "Advent Calendar", "Christmas Village", "Tinsel Tree",
-    "Lantern", "Christmas Pillow", "Table Runner", "Snowman Ornament", "Gift Bag"
+    ["Christmas Tree", "Pine"], ["Christmas Lights", "Glow"], ["Ornament", "Hanging"], ["Star", "Top"],
+    ["Wreath", "Door"], ["Stocking", "Fireplace"], ["Tinsel", "Sparkly"], ["Snow Globe", "Shake"],
+    ["Mistletoe", "Kiss"], ["Bells", "Ring"], ["Present", "Surprise"], ["Wrapping Paper", "Rip"],
+    ["Ribbon", "Curly"], ["Bow", "Tie"], ["Angel", "Halo"], ["Nutcracker", "Soldier"],
+    ["Gingerbread House", "Candy"], ["Christmas Card", "Mail"], ["Santa Hat", "Pom-pom"], ["Advent Calendar", "Countdown"],
+    ["Fireplace", "Logs"], ["Chimney", "Roof"], ["Sleigh", "Flying"], ["Paper Snowflake", "Scissors"],
+    ["Pine Cone", "Seeds"], ["Candle", "Wax"], ["Garland", "Stairs"], ["Glitter", "Messy"]
   ]
 }

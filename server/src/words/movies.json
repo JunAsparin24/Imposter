@@ -1,15 +1,12 @@
 {
   "id": "movies",
   "words": [
-    "Home Alone", "Home Alone 2", "The Polar Express", "Miracle on 34th Street", { "word": "It's a Wonderful Life", "aliases": ["Its a Wonderful Life"] },
-    "A Christmas Story", "Die Hard", "Love Actually", "The Santa Clause", "Jingle All the Way",
-    "Arthur Christmas", "Klaus", "The Nightmare Before Christmas", "Rudolph the Red-Nosed Reindeer", "Frosty the Snowman",
-    "A Charlie Brown Christmas", { "word": "Christmas Vacation", "aliases": ["National Lampoon's Christmas Vacation"] }, "Scrooged", "The Muppet Christmas Carol", "A Christmas Carol",
-    "Gremlins", "Frozen", "Last Christmas", "The Holiday", "Four Christmases",
-    "Fred Claus", "Krampus", "White Christmas", "Holiday Inn", "Jack Frost",
-    "The Christmas Chronicles", "Noelle", "Single All the Way", "Mickey's Christmas Carol", "The Snowman",
-    "Olaf's Frozen Adventure", "The Year Without a Santa Claus", "Santa Claus: The Movie", "Deck the Halls", "Christmas with the Kranks",
-    "The Family Stone", "Violent Night", "Red One", "Spirited", "The Princess Switch",
-    "A Christmas Prince", "Shrek the Halls", "Ernest Saves Christmas", "Prancer", "Elliot the Littlest Reindeer"
+    ["Home Alone", "Burglars"], ["Frozen", "Sisters"], ["The Polar Express", "Train"], ["Toy Story", "Cowboy"],
+    ["Shrek", "Ogre"], ["Finding Nemo", "Clownfish"], ["The Lion King", "Africa"], ["Harry Potter", "Wizard"],
+    ["Spider-Man", "Web"], ["SpongeBob", "Pineapple"], ["Minions", "Banana"], ["Star Wars", "Lightsaber"],
+    ["Cars", "Racing"], ["Moana", "Island"], ["Up", "Balloons"], ["Coco", "Guitar"],
+    ["The Simpsons", "Donuts"], ["Peppa Pig", "Muddy"], ["Batman", "Gotham"], ["Barbie", "Pink"],
+    ["Inside Out", "Emotions"], ["Kung Fu Panda", "Dumplings"], ["Jurassic Park", "Dinosaurs"], ["Aladdin", "Lamp"],
+    ["The Little Mermaid", "Ocean"], ["Mario Movie", "Mushroom"], ["Encanto", "Family"], ["Despicable Me", "Villain"]
   ]
 }

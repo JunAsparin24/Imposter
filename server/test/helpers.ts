@@ -22,7 +22,7 @@ export function makeRoom(playerCount: number, settings: Partial<GameSettings> = 
     ids.push(p.id);
   }
   const host = ids[0];
-  room.updateSettings(host, { discussionSeconds: 0, votingSeconds: 0, autoAdvance: false, ...settings });
+  if (host) room.updateSettings(host, { discussionSeconds: 0, votingSeconds: 0, autoAdvance: false, ...settings });
   return { room, clock, ids, host };
 }
 

@@ -2,8 +2,11 @@ import { AnimatePresence, motion, useIsPresent } from 'framer-motion';
 import { useEffect, useRef } from 'react';
 import type { Phase } from '@imposter/shared';
 import { RoomHeader } from '../components/RoomChrome';
+import { Spinner } from '../components/ui';
+import { useWakeLock } from '../lib/hooks';
 import { play, vibrate } from '../lib/sound';
 import { FrozenStateContext, useGame, useRoom } from '../state/GameProvider';
+import { DisplayLobby, DisplayRoleReveal } from './DisplayScreens';
 import { Lobby } from './Lobby';
 import { RoundResultsScreen, ScoreboardScreen } from './ResultScreens';
 import { ClueScreen, DiscussionScreen, RoleRevealScreen } from './RoundScreens';
@@ -21,18 +24,54 @@ const SCREENS: Record<Phase, () => JSX.Element> = {
   SCOREBOARD: ScoreboardScreen,
 };
 
+const DISPLAY_SCREENS: Partial<Record<Phase, () => JSX.Element>> = {
+  LOBBY: DisplayLobby,
+  ROLE_REVEAL: DisplayRoleReveal,
+};
+
+/** Screens that use a wider two-column layout on laptops (the host's screen is often a laptop). */
+const WIDE_PHASES: Phase[] = ['LOBBY'];
+
 export function GameRoom() {
-  const { room } = useRoom();
-  const Screen = SCREENS[room.phase];
+  const { room, status, isDisplay } = useRoom();
+  // The room screen has its own lobby and role-reveal views; everything else is shared.
+  const Screen = (isDisplay && DISPLAY_SCREENS[room.phase]) || SCREENS[room.phase];
   usePhaseFeedback();
+  useWakeLock(isDisplay || room.phase !== 'LOBBY');
+  const announcement = useAnnouncement();
 
   // A screen is re-mounted on each phase change *and* each new vote (so a revote animates in).
   const screenKey = `${room.phase}-${room.match?.vote?.id ?? ''}-${room.match?.number ?? 0}`;
+  // The room screen is usually a laptop/TV, so it always gets the wide layout.
+  const wide = isDisplay || WIDE_PHASES.includes(room.phase);
 
   return (
     <div className="flex min-h-dvh flex-col">
       <RoomHeader />
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-xl">
+      <AnimatePresence>
+        {status !== 'connected' && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden bg-grinch/15"
+            role="status"
+          >
+            <p className="mx-auto flex max-w-xl items-center justify-center gap-2 px-4 py-2 text-center text-sm font-semibold text-grinch-light">
+              <Spinner /> Reconnecting… your seat, role and score are saved.
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Screen-reader announcements of what's happening (visually hidden). */}
+      <p className="sr-only" aria-live="assertive" aria-atomic="true">
+        {announcement}
+      </p>
+      <main
+        className={`mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-5 md:max-w-xl ${wide ? 'lg:max-w-5xl' : ''} ${
+          status !== 'connected' ? 'pointer-events-none opacity-60 transition-opacity' : ''
+        }`}
+      >
         <AnimatePresence mode="wait">
           <motion.div
             key={screenKey}
@@ -59,6 +98,44 @@ function PhaseFrame({ children }: { children: React.ReactNode }) {
   const snapshot = useRef(state);
   if (isPresent && state) snapshot.current = state;
   return <FrozenStateContext.Provider value={snapshot.current}>{children}</FrozenStateContext.Provider>;
+}
+
+/** A short spoken summary of the current moment, for screen-reader users. */
+function useAnnouncement(): string {
+  const { room, session, playerById } = useRoom();
+  const m = room.match;
+  const me = session?.playerId;
+  switch (room.phase) {
+    case 'ROLE_REVEAL':
+      return 'The match has started. Press and hold your role card to see your secret role.';
+    case 'CLUE': {
+      const speaker = playerById(m?.currentSpeakerId);
+      if (!speaker) return '';
+      return speaker.id === me ? "It's your turn. Say one word out loud." : `${speaker.name} is speaking.`;
+    }
+    case 'DISCUSSION':
+      return 'Discussion time. Talk about who might be a Grinch.';
+    case 'VOTING':
+      return m?.vote?.isRevote ? 'Revote between the tied players.' : 'Voting has started. Choose who you think is a Grinch.';
+    case 'VOTE_RESULTS': {
+      const r = m?.lastResult;
+      if (!r) return '';
+      if (r.kind === 'ELIMINATED' || r.kind === 'ACCUSED') {
+        return r.playerIds
+          .map((id) => `${playerById(id)?.name ?? 'Someone'} was ${r.roles[id] === 'GRINCH' ? 'a Grinch' : 'an Elf'}.`)
+          .join(' ');
+      }
+      return r.kind === 'TIE' ? 'It is a tie. A revote is coming.' : 'Nobody was eliminated.';
+    }
+    case 'FINAL_GUESS':
+      return 'The caught Grinch is making one final guess at the secret word.';
+    case 'ROUND_RESULTS':
+      return m?.results ? `${m.results.winner === 'ELVES' ? 'The Elves' : 'The Grinches'} win. The secret word was ${m.results.word}.` : '';
+    case 'SCOREBOARD':
+      return 'Scoreboard.';
+    default:
+      return '';
+  }
 }
 
 /** Sounds + haptics on key moments. */

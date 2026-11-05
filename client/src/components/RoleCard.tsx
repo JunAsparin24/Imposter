@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import type { PrivatePlayerState } from '@imposter/shared';
 import { play, vibrate } from '../lib/sound';
 import { useGame } from '../state/GameProvider';
+import { AvatarImg } from './decor';
 import { Toggle } from './ui';
 
 /**
  * Private role card. Hidden by default: hold to peek (release hides it), or switch on
- * tap-to-toggle for accessibility. Only shows what the server sent this player —
+ * tap-to-toggle for accessibility. Only shows what the server sent this player:
  * a Grinch's browser never receives the secret word at all.
  */
 export function RoleCard({ priv, compact = false }: { priv: PrivatePlayerState; compact?: boolean }) {
@@ -94,7 +95,7 @@ export function RoleCard({ priv, compact = false }: { priv: PrivatePlayerState; 
               <p className="heading max-w-[16rem] text-xl leading-tight">
                 {toggleMode ? 'Tap to reveal your role' : 'Tap and hold to reveal your role'}
               </p>
-              <p className="text-sm text-night-300">Make sure nobody is peeking 👀</p>
+              <p className="text-sm text-night-300">Make sure nobody is peeking</p>
             </motion.div>
           ) : (
             <motion.div
@@ -134,9 +135,6 @@ function RoleContent({ priv }: { priv: PrivatePlayerState }) {
   if (priv.role === 'ELF') {
     return (
       <>
-        <span className="text-4xl" aria-hidden>
-          🧝
-        </span>
         <p className="label !text-elf-light">You are innocent</p>
         <h2 className="heading text-[clamp(1.9rem,9vw,2.6rem)] text-elf">You're an Elf</h2>
         <div className="mt-2 w-full rounded-2xl bg-black/30 px-4 py-3">
@@ -151,21 +149,24 @@ function RoleContent({ priv }: { priv: PrivatePlayerState }) {
   if (priv.role === 'GRINCH') {
     return (
       <>
-        <span className="text-4xl" aria-hidden>
-          😈
-        </span>
         <p className="label !text-grinch-light">You are an imposter</p>
         <h2 className="heading text-[clamp(1.9rem,9vw,2.6rem)] text-grinch">You're the Grinch</h2>
         <div className="mt-1 w-full rounded-2xl bg-black/30 px-4 py-3">
           <p className="label">Secret word</p>
           <p className="heading mt-1 text-3xl text-grinch-light">???</p>
-          {priv.categoryName && <p className="mt-1 text-xs font-semibold text-night-300">Hint: {priv.categoryName}</p>}
+          {priv.hint && (
+            <div className="mt-2 rounded-xl bg-gold/10 px-3 py-2">
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-gold/80">Your hint</p>
+              <p className="heading mt-0.5 break-words text-2xl text-gold">{priv.hint}</p>
+              <p className="mt-0.5 text-[11px] text-night-300">Every Grinch has the same hint</p>
+            </div>
+          )}
         </div>
         <div className="w-full rounded-2xl bg-black/30 px-4 py-3">
           <p className="label">{priv.teammates.length ? 'Your fellow Grinches' : 'Your team'}</p>
           {priv.teammates.length ? (
             <p className="mt-1 break-words text-lg font-bold text-grinch-light">
-              {priv.teammates.map((t) => `${t.avatar} ${t.name}`).join(', ')}
+              {priv.teammates.map((t, i) => (<span key={t.id} className="inline-flex items-center gap-1">{i > 0 && ', '}<AvatarImg id={t.avatar} size={22} /> {t.name}</span>))}
             </p>
           ) : (
             <p className="mt-1 text-lg font-bold text-grinch-light">You're the only Grinch.</p>
@@ -177,9 +178,6 @@ function RoleContent({ priv }: { priv: PrivatePlayerState }) {
   }
   return (
     <>
-      <span className="text-4xl" aria-hidden>
-        👀
-      </span>
       <h2 className="heading text-2xl">Spectating</h2>
       <p className="max-w-[18rem] text-sm text-night-300">You're sitting out this match. You'll be dealt in next match.</p>
     </>

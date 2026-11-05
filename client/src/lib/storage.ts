@@ -1,4 +1,4 @@
-import type { SessionInfo } from '@imposter/shared';
+import type { DisplaySession, SessionInfo } from '@imposter/shared';
 
 /** localStorage helpers. Every access is wrapped: private mode / blocked storage must not break the game. */
 
@@ -27,12 +27,24 @@ function write(key: string, value: unknown): void {
 export const loadSession = () => read<SessionInfo>(SESSION_KEY);
 export const saveSession = (s: SessionInfo | null) => write(SESSION_KEY, s);
 
+const DISPLAY_KEY = 'imposter:display';
+export const loadDisplay = () => read<DisplaySession>(DISPLAY_KEY);
+export const saveDisplay = (d: DisplaySession | null) => write(DISPLAY_KEY, d);
+
 export interface Profile {
   name: string;
   avatar: string;
 }
 export const loadProfile = () => read<Profile>(PROFILE_KEY);
 export const saveProfile = (p: Profile) => write(PROFILE_KEY, p);
+
+const PACK_KEY = 'imposter:customPack';
+export interface SavedPack {
+  name: string;
+  lines: string[];
+}
+export const loadCustomPack = () => read<SavedPack>(PACK_KEY);
+export const saveCustomPack = (p: SavedPack) => write(PACK_KEY, p);
 
 export interface Prefs {
   muted: boolean;

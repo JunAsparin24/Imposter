@@ -1,5 +1,6 @@
-import { motion, useReducedMotion } from 'framer-motion';
-import { useMemo } from 'react';
+import { animate, motion, useReducedMotion } from 'framer-motion';
+import { AVATAR_IMAGES } from '@imposter/shared';
+import { useEffect, useMemo, useState } from 'react';
 
 /** Gentle CSS snowfall. Disabled automatically for reduced-motion users. */
 export function Snowfall({ count = 36 }: { count?: number }) {
@@ -95,8 +96,32 @@ export function Avatar({
       style={{ width: size, height: size, fontSize: size * 0.52 }}
       aria-hidden
     >
-      {emoji}
+      <AvatarImg id={emoji} size={Math.round(size * 0.74)} />
     </span>
+  );
+}
+
+/** The pixel-art picture for an avatar id. Falls back to the emoji for unknown ids. */
+export function AvatarImg({ id, size = 18, className = '' }: { id: string; size?: number; className?: string }) {
+  const slug = (AVATAR_IMAGES as Record<string, string>)[id];
+  if (!slug) {
+    return (
+      <span className={className} style={{ fontSize: size * 0.85, lineHeight: 1 }} aria-hidden>
+        {id}
+      </span>
+    );
+  }
+  return (
+    <img
+      src={`/avatars/${slug}.webp`}
+      alt=""
+      aria-hidden
+      draggable={false}
+      width={size}
+      height={size}
+      className={`inline-block shrink-0 select-none object-contain align-[-0.2em] ${className}`}
+      style={{ width: size, height: size }}
+    />
   );
 }
 
@@ -179,4 +204,24 @@ export function Confetti({ pieces = 70 }: { pieces?: number }) {
       ))}
     </div>
   );
+}
+
+/** Counts a number up from `from` to `to` (instant for reduced-motion users). */
+export function CountUp({ from, to, duration = 0.9, delay = 0 }: { from: number; to: number; duration?: number; delay?: number }) {
+  const reduce = useReducedMotion();
+  const [value, setValue] = useState(reduce ? to : from);
+  useEffect(() => {
+    if (reduce || from === to) {
+      setValue(to);
+      return;
+    }
+    const controls = animate(from, to, {
+      duration,
+      delay,
+      ease: 'easeOut',
+      onUpdate: (v) => setValue(Math.round(v)),
+    });
+    return () => controls.stop();
+  }, [from, to, duration, delay, reduce]);
+  return <>{value}</>;
 }

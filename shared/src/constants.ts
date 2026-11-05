@@ -3,7 +3,6 @@ import type { CategoryId, GameSettings } from './types';
 export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 16;
 export const NAME_MAX_LENGTH = 16;
-export const GUESS_MAX_LENGTH = 60;
 
 export const ROOM_CODE_LENGTH = 6;
 /** No 0/O, 1/I/L to keep codes easy to read aloud and type. */
@@ -15,6 +14,37 @@ export const AVATARS = [
   '🧸', '🎿', '🕯️', '☕',
 ] as const;
 
+/** Pixel-art image for each avatar id (files live in client/public/avatars). */
+export const AVATAR_IMAGES: Record<(typeof AVATARS)[number], string> = {
+  '🎅': 'santa',
+  '🤶': 'mrs-claus',
+  '🦌': 'reindeer',
+  '⛄': 'snowman',
+  '🎄': 'tree',
+  '🎁': 'gift',
+  '🍪': 'gingerbread',
+  '🔔': 'bell',
+  '⭐': 'star',
+  '🧦': 'stocking',
+  '🍭': 'candy-cane',
+  '❄️': 'snowflake',
+  '🐧': 'penguin',
+  '🐻‍❄️': 'polar-bear',
+  '🦊': 'fox',
+  '🦉': 'owl',
+  '🧸': 'teddy-bear',
+  '🎿': 'sled',
+  '🕯️': 'candle',
+  '☕': 'cocoa',
+};
+
+export const AVATAR_LABELS: Record<(typeof AVATARS)[number], string> = {
+  '🎅': 'Santa', '🤶': 'Mrs. Claus', '🦌': 'Reindeer', '⛄': 'Snowman', '🎄': 'Christmas tree',
+  '🎁': 'Gift', '🍪': 'Gingerbread', '🔔': 'Bell', '⭐': 'Star cookie', '🧦': 'Stocking',
+  '🍭': 'Candy cane', '❄️': 'Snowflake', '🐧': 'Penguin', '🐻‍❄️': 'Polar bear', '🦊': 'Fox',
+  '🦉': 'Owl', '🧸': 'Teddy bear', '🎿': 'Sled', '🕯️': 'Candle', '☕': 'Hot cocoa',
+};
+
 export interface CategoryMeta {
   id: CategoryId;
   name: string;
@@ -22,18 +52,57 @@ export interface CategoryMeta {
 }
 
 export const CATEGORIES: CategoryMeta[] = [
-  { id: 'food', name: 'Christmas Food & Drinks', emoji: '🍪' },
-  { id: 'animals', name: 'Winter Animals', emoji: '🦌' },
-  { id: 'places', name: 'Christmas Around the World', emoji: '🌍' },
-  { id: 'movies', name: 'Christmas Movies & TV', emoji: '🎬' },
-  { id: 'music', name: 'Christmas Songs', emoji: '🎶' },
-  { id: 'activities', name: 'Winter Sports & Activities', emoji: '⛸️' },
+  { id: 'food', name: 'Food & Drinks', emoji: '🍪' },
+  { id: 'animals', name: 'Animals', emoji: '🐧' },
+  { id: 'places', name: 'Places', emoji: '🏠' },
+  { id: 'movies', name: 'Movies & Shows', emoji: '🎬' },
+  { id: 'music', name: 'Songs', emoji: '🎶' },
+  { id: 'activities', name: 'Fun Activities', emoji: '⛸️' },
   { id: 'toys', name: 'Toys & Games', emoji: '🧸' },
-  { id: 'gadgets', name: 'Gadgets & Gifts', emoji: '🎁' },
-  { id: 'decorations', name: 'Decorations & Holiday Things', emoji: '🎄' },
-  { id: 'characters', name: 'Christmas Characters', emoji: '🎅' },
+  { id: 'gadgets', name: 'Gifts', emoji: '🎁' },
+  { id: 'decorations', name: 'Christmas Decorations', emoji: '🎄' },
+  { id: 'characters', name: 'Characters', emoji: '🎅' },
+  { id: 'clothing', name: 'Clothes', emoji: '🧣' },
+  { id: 'weather', name: 'Weather', emoji: '🌨️' },
   { id: 'random', name: 'Random Mix', emoji: '🎲' },
+  { id: 'custom', name: 'Custom Pack', emoji: '✏️' },
 ];
+
+/** Limits for host-made word packs. */
+export const CUSTOM_PACK = {
+  MAX_WORDS: 300,
+  MAX_WORD_LENGTH: 40,
+  MAX_NAME_LENGTH: 30,
+  MIN_WORDS: 3,
+} as const;
+
+/**
+ * Parses custom pack lines. Each line is a word, optionally followed by "|" and a hint word
+ * that every Grinch will see: "Hot Chocolate | Mug". Blank lines, duplicates and over-long
+ * entries are dropped.
+ */
+export function parseCustomPackLines(lines: string[]): { word: string; hint: string }[] {
+  const clean = (s: string) =>
+    s
+      .normalize('NFKC')
+      .replace(/[\u0000-\u001f\u007f<>]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const seen = new Set<string>();
+  const out: { word: string; hint: string }[] = [];
+  for (const line of lines) {
+    const [rawWord, ...rest] = line.split('|');
+    const word = clean(rawWord ?? '');
+    if (!word || word.length > CUSTOM_PACK.MAX_WORD_LENGTH) continue;
+    const key = normalizeWord(word);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    const hint = clean(rest.join(' ')).slice(0, CUSTOM_PACK.MAX_WORD_LENGTH);
+    out.push({ word, hint });
+    if (out.length >= CUSTOM_PACK.MAX_WORDS) break;
+  }
+  return out;
+}
 
 export const CATEGORY_IDS = CATEGORIES.map((c) => c.id) as CategoryId[];
 
@@ -56,7 +125,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   votingSeconds: 60,
   finalGuessEnabled: true,
   soundEnabled: true,
-  categoryHintForGrinch: false,
+  grinchHint: true,
   allowSkipVote: true,
   autoAdvance: true,
   allowRepeatWords: false,
@@ -77,7 +146,8 @@ export const TIMING = {
   SPEAKER_DISCONNECT_GRACE_MS: 20_000,
   /** Voting closes early once every missing voter has been offline this long. */
   VOTER_DISCONNECT_GRACE_MS: 20_000,
-  FINAL_GUESS_MS: 45_000,
+  /** Time for the caught Grinch to say a guess and an Elf to confirm it. */
+  FINAL_GUESS_MS: 60_000,
   VOTE_RESULTS_AUTO_MS: 9_000,
   DISCUSSION_EXTEND_MS: 30_000,
 } as const;

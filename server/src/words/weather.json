@@ -1,0 +1,12 @@
+{
+  "id": "weather",
+  "words": [
+    ["Snow", "White"], ["Blizzard", "Storm"], ["Icicle", "Dripping"], ["Frost", "Window"],
+    ["Snowflake", "Unique"], ["Ice", "Slippery"], ["Wind", "Breezy"], ["Rain", "Puddle"],
+    ["Thunder", "Lightning"], ["Rainbow", "Arch"], ["Sun", "Bright"], ["Cloud", "Sky"],
+    ["Fog", "Grey"], ["Cold", "Shiver"], ["Snow Day", "No school"], ["Snowplow", "Truck"],
+    ["Shovel", "Dig"], ["Thermometer", "Degrees"], ["Northern Lights", "Night sky"], ["Hail", "Bouncing"],
+    ["Tornado", "Spinning"], ["Weather Forecast", "News"], ["Melting", "Spring"], ["Frozen Lake", "Skating"],
+    ["Heater", "Warm"]
+  ]
+}

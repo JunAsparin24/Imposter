@@ -1,13 +1,14 @@
 import { timingSafeEqual } from 'node:crypto';
 import {
+  CUSTOM_PACK,
   DEFAULT_SETTINGS,
-  GUESS_MAX_LENGTH,
   MAX_PLAYERS,
   MIN_PLAYERS,
   NAME_MAX_LENGTH,
   SCORING,
   TIMING,
   categoryName,
+  parseCustomPackLines,
   maxGrinchCount,
   normalizeWord,
   resolveGrinchCount,
@@ -32,7 +33,7 @@ import {
   type WinReason,
 } from '@imposter/shared';
 import { generateId, generateToken, shuffle, type Rng } from './rng';
-import { isCorrectGuess, type WordBank, type WordEntry } from './wordBank';
+import type { WordBank, WordEntry } from './wordBank';
 
 /** Error with a client-safe code + message. Never put secret info in the message. */
 export class GameError extends Error {
@@ -100,6 +101,8 @@ interface Match {
   /** Settings snapshot: host edits during a match only affect the next match. */
   settings: GameSettings;
   word: WordEntry;
+  /** Name of the custom pack at match start (for custom words' category label). */
+  packName: string;
   participantIds: string[];
   roles: Map<string, Role>;
   grinchIds: string[];
@@ -115,8 +118,10 @@ interface Match {
   voteHistory: VoteSession[];
   lastResult: VoteResult | null;
   pendingRevote: PendingRevote | null;
-  finalGuess: { guesserIds: string[]; guesses: Map<string, { guess: string; correct: boolean }> } | null;
-  allGuesses: { playerId: string; guess: string; correct: boolean }[];
+  finalGuess: { guesserIds: string[] } | null;
+  allGuesses: { playerId: string; correct: boolean }[];
+  /** Practice round: easy word, no points, not counted. */
+  practice: boolean;
   lastGuess: LastGuessInfo | null;
   results: MatchResults | null;
 }
@@ -132,7 +137,15 @@ const emptyStats = (): PlayerStats => ({
   grinchMatches: 0,
   correctVotes: 0,
   correctGuesses: 0,
+  elfWins: 0,
+  grinchWins: 0,
+  timesVotedOut: 0,
 });
+
+export interface CustomPack {
+  name: string;
+  words: WordEntry[];
+}
 
 /**
  * One game room and its authoritative state machine.
@@ -157,6 +170,17 @@ export class Room {
   matchesPlayed = 0;
   history: MatchSummary[] = [];
   private recentWords: string[] = [];
+  /** Host has locked the room: no new players can join. */
+  locked = false;
+  /** Host-made word pack, used when the "custom" category is selected. */
+  customPack: CustomPack | null = null;
+  /**
+   * The device that created the room acts as the shared room screen (code, QR, live game view).
+   * It is not a player. This token lets it reconnect after a refresh.
+   */
+  readonly displayToken = generateToken();
+  /** Socket ids of connected room screens. */
+  readonly displaySockets = new Set<string>();
 
   constructor(
     readonly code: string,
@@ -181,6 +205,7 @@ export class Room {
   }
 
   joinBlocker(): ErrorCode | null {
+    if (this.locked) return 'ROOM_LOCKED';
     if (this.phase !== 'LOBBY' && this.phase !== 'SCOREBOARD') return 'GAME_IN_PROGRESS';
     if (this.activePlayers().length >= MAX_PLAYERS) return 'ROOM_FULL';
     return null;
@@ -192,6 +217,7 @@ export class Room {
       throw new GameError(blocker, 'A game is already in progress in this room. Ask the host to let you in after this match.');
     }
     if (blocker === 'ROOM_FULL') throw new GameError(blocker, `This room is full (${MAX_PLAYERS} players max).`);
+    if (blocker === 'ROOM_LOCKED') throw new GameError(blocker, 'The host has locked this room.');
     const base = sanitizeName(rawName);
     if (!base) throw new GameError('INVALID_INPUT', 'Please enter a display name.');
     const now = this.now();
@@ -292,8 +318,15 @@ export class Room {
     this.touch();
   }
 
+  /** No players and no room screen: safe to delete. */
   isEmpty(): boolean {
-    return this.activePlayers().length === 0;
+    return this.activePlayers().length === 0 && this.displaySockets.size === 0;
+  }
+
+  isDisplayToken(token: string): boolean {
+    const a = Buffer.from(token);
+    const b = Buffer.from(this.displayToken);
+    return a.length === b.length && timingSafeEqual(a, b);
   }
 
   private pickNewHost(excludeId?: string): string | null {
@@ -319,9 +352,53 @@ export class Room {
     this.settings = next;
   }
 
+  /**
+   * Saves (or clears, with no valid lines) the host's custom word pack. The words are only
+   * ever sent back to the host — players see just the pack name and size.
+   */
+  setCustomPack(actorId: string, rawName: string, lines: string[]): { count: number } {
+    this.requireHost(actorId);
+    const entries = parseCustomPackLines(lines);
+    if (entries.length === 0) {
+      this.customPack = null;
+      this.settings.categories = this.settings.categories.filter((c) => c !== 'custom');
+      if (this.settings.categories.length === 0) this.settings.categories = ['random'];
+      return { count: 0 };
+    }
+    if (entries.length < CUSTOM_PACK.MIN_WORDS) {
+      throw new GameError('INVALID_INPUT', `Add at least ${CUSTOM_PACK.MIN_WORDS} words to your pack.`);
+    }
+    const name = sanitizeName(rawName).slice(0, CUSTOM_PACK.MAX_NAME_LENGTH) || 'Custom Pack';
+    this.customPack = {
+      name,
+      words: entries.map((e) => ({ word: e.word, hint: e.hint, category: 'custom' as const })),
+    };
+    return { count: entries.length };
+  }
+
+  transferHost(actorId: string, targetId: string): void {
+    this.requireHost(actorId);
+    const target = this.players.get(targetId);
+    if (!target || target.left) throw new GameError('INVALID_INPUT', 'That player is not in the room.');
+    if (!target.connected) throw new GameError('NOT_ALLOWED', `${target.name} is offline right now.`);
+    this.hostId = targetId;
+  }
+
+  setLocked(actorId: string, locked: boolean): void {
+    this.requireHost(actorId);
+    this.locked = locked;
+  }
+
+  /** Display name for a word's category (custom words show the pack's name). */
+  private categoryLabel(m: Match): string {
+    if (m.word.category === 'practice') return 'Practice round';
+    return m.word.category === 'custom' ? m.packName : categoryName(m.word.category);
+  }
+
   // ───────────────────────────── match lifecycle ─────────────────────────────
 
-  startMatch(actorId: string): void {
+  /** Starts a match. `practice` = a trial round with an easy everyday word and no points. */
+  startMatch(actorId: string, practice = false): void {
     this.requireHost(actorId);
     if (this.phase !== 'LOBBY' && this.phase !== 'SCOREBOARD') {
       throw new GameError('GAME_IN_PROGRESS', 'The game has already started.');
@@ -331,6 +408,9 @@ export class Room {
       throw new GameError('NOT_ENOUGH_PLAYERS', `You need at least ${MIN_PLAYERS} connected players to start.`);
     }
     const settings = structuredClone(this.settings);
+    if (!practice && settings.categories.includes('custom') && !this.customPack) {
+      throw new GameError('INVALID_SETTINGS', 'Your custom word pack is empty. Add words or untick "Custom Pack".');
+    }
     const grinchCount = resolveGrinchCount(settings, present.length);
     const max = maxGrinchCount(present.length);
     if (grinchCount < 1 || grinchCount > max) {
@@ -342,13 +422,12 @@ export class Room {
 
     // Validation passed — from here on we mutate.
     this.purgeLeft();
-    if (this.isSeriesComplete()) this.resetScoresInternal();
+    if (!practice && this.isSeriesComplete()) this.resetScoresInternal();
 
-    const word = this.deps.words.pick(
-      settings.categories,
-      settings.allowRepeatWords ? [] : this.recentWords,
-      this.deps.rng,
-    );
+    const recent = settings.allowRepeatWords ? [] : this.recentWords;
+    const word = practice
+      ? this.deps.words.pickPractice(recent, this.deps.rng)
+      : this.deps.words.pick(settings.categories, recent, this.deps.rng, this.customPack?.words ?? []);
     this.recentWords.push(normalizeWord(word.word));
     if (this.recentWords.length > RECENT_WORDS_LIMIT) this.recentWords.shift();
 
@@ -358,9 +437,10 @@ export class Room {
 
     this.match = {
       id: generateId('m'),
-      number: this.matchesPlayed + 1,
+      number: practice ? 0 : this.matchesPlayed + 1,
       settings,
       word,
+      packName: this.customPack?.name ?? 'Custom Pack',
       participantIds: ids,
       roles,
       grinchIds,
@@ -378,6 +458,7 @@ export class Room {
       pendingRevote: null,
       finalGuess: null,
       allGuesses: [],
+      practice,
       lastGuess: null,
       results: null,
     };
@@ -473,31 +554,33 @@ export class Room {
       this.afterVoteResults();
     } else if (this.phase === 'ROUND_RESULTS') {
       this.requirePhase('ROUND_RESULTS', phaseSeq);
-      this.setPhase('SCOREBOARD', null);
+      // Practice rounds don't count, so they go straight back to the lobby.
+      if (this.match!.practice) this.returnToLobby(actorId);
+      else this.setPhase('SCOREBOARD', null);
     } else {
       throw new GameError('WRONG_PHASE', 'There is nothing to continue right now.');
     }
   }
 
-  submitGuess(playerId: string, rawGuess: string): { correct: boolean } {
-    this.requirePhase('FINAL_GUESS');
+  /**
+   * The caught Grinch says their guess OUT LOUD; any Elf (they know the word) taps whether
+   * it was right. The first Elf to answer decides. phaseSeq stops double taps counting twice.
+   */
+  judgeGuess(judgeId: string, phaseSeq: number, correct: boolean): void {
+    this.requirePhase('FINAL_GUESS', phaseSeq);
     const m = this.match!;
     const fg = m.finalGuess!;
-    if (!fg.guesserIds.includes(playerId)) throw new GameError('NOT_ALLOWED', 'Only the caught Grinch can make the final guess.');
-    if (fg.guesses.has(playerId)) throw new GameError('ALREADY_SUBMITTED', 'You already made your guess.');
-    const guess = rawGuess.trim().slice(0, GUESS_MAX_LENGTH);
-    if (!guess) throw new GameError('INVALID_INPUT', 'Type a guess first.');
-    const correct = isCorrectGuess(m.word, guess);
-    fg.guesses.set(playerId, { guess, correct });
-    m.allGuesses.push({ playerId, guess, correct });
-    m.lastGuess = { playerId, correct };
+    if (m.roles.get(judgeId) !== 'ELF' || m.departedIds.includes(judgeId)) {
+      throw new GameError('NOT_ALLOWED', 'Only Elves (who know the word) can judge the guess.');
+    }
+    for (const id of fg.guesserIds) m.allGuesses.push({ playerId: id, correct });
+    m.lastGuess = { playerId: fg.guesserIds[0], correct };
     if (correct) {
-      // First version rule: a correct final guess wins the match for the whole Grinch team.
+      // A correct final guess wins the match for the whole Grinch team.
       this.endMatch('GRINCHES', 'FINAL_GUESS');
-    } else if (fg.guesserIds.every((id) => fg.guesses.has(id))) {
+    } else {
       this.resolveFinalGuessFailure();
     }
-    return { correct };
   }
 
   returnToLobby(actorId: string): void {
@@ -727,18 +810,14 @@ export class Room {
       this.resolveFinalGuessFailure();
       return;
     }
-    this.match!.finalGuess = { guesserIds, guesses: new Map() };
+    this.match!.finalGuess = { guesserIds };
     this.setPhase('FINAL_GUESS', this.now() + TIMING.FINAL_GUESS_MS);
   }
 
-  /** Every guess was wrong (or timed out). */
+  /** The guess was judged wrong, or time ran out, or the guesser left. */
   private resolveFinalGuessFailure(): void {
     const m = this.match!;
-    if (m.finalGuess) {
-      for (const id of m.finalGuess.guesserIds) {
-        if (!m.finalGuess.guesses.has(id)) m.lastGuess = { playerId: id, correct: false };
-      }
-    }
+    if (m.finalGuess) m.lastGuess = { playerId: m.finalGuess.guesserIds[0], correct: false };
     m.finalGuess = null;
     if (m.settings.votingSystem === 'SINGLE') this.endMatch('ELVES', 'GRINCHES_CAUGHT');
     else this.afterElimination();
@@ -760,18 +839,16 @@ export class Room {
   /** A participant left or was kicked during a live match. */
   private handleDeparture(playerId: string): void {
     const m = this.match!;
+    if (this.phase === 'FINAL_GUESS') {
+      if (!m.departedIds.includes(playerId)) m.departedIds.push(playerId);
+      // If every caught Grinch who was guessing has left, the guess is lost.
+      const fg = m.finalGuess!;
+      if (fg.guesserIds.every((id) => m.departedIds.includes(id))) this.resolveFinalGuessFailure();
+      return;
+    }
     const wasAlive = !m.eliminatedIds.includes(playerId) && !m.departedIds.includes(playerId);
     if (!wasAlive) return;
     m.departedIds.push(playerId);
-
-    if (this.phase === 'FINAL_GUESS') {
-      const fg = m.finalGuess!;
-      if (fg.guesserIds.includes(playerId) && !fg.guesses.has(playerId)) {
-        fg.guesses.set(playerId, { guess: '', correct: false });
-        if (fg.guesserIds.every((id) => fg.guesses.has(id))) this.resolveFinalGuessFailure();
-      }
-      return;
-    }
 
     const win = this.checkWin();
     if (win) {
@@ -821,14 +898,27 @@ export class Room {
       if (g.correct && stillHere(g.playerId)) add(g.playerId, SCORING.FINAL_GUESS_BONUS, 'Guessed the secret word');
     }
 
-    for (const id of m.participantIds) {
+    // Practice rounds: show who was who, but award nothing and record nothing.
+    if (m.practice) {
+      for (const k of Object.keys(points)) delete points[k];
+      for (const k of Object.keys(breakdown)) delete breakdown[k];
+    }
+    for (const id of m.practice ? [] : m.participantIds) {
       const p = this.players.get(id);
       if (!p || p.left) continue;
       p.score += points[id] ?? 0;
       p.stats.matchesPlayed++;
       const role = m.roles.get(id);
       if (role === 'GRINCH') p.stats.grinchMatches++;
-      if ((winner === 'ELVES' && role === 'ELF') || (winner === 'GRINCHES' && role === 'GRINCH')) p.stats.wins++;
+      if (winner === 'ELVES' && role === 'ELF') {
+        p.stats.wins++;
+        p.stats.elfWins++;
+      }
+      if (winner === 'GRINCHES' && role === 'GRINCH') {
+        p.stats.wins++;
+        p.stats.grinchWins++;
+      }
+      if (m.eliminatedIds.includes(id)) p.stats.timesVotedOut++;
       p.stats.correctVotes += correctVotes[id] ?? 0;
       if (m.allGuesses.some((g) => g.correct && g.playerId === id)) p.stats.correctGuesses++;
     }
@@ -849,7 +939,7 @@ export class Room {
       reason,
       word: m.word.word,
       category: m.word.category,
-      categoryName: categoryName(m.word.category),
+      categoryName: this.categoryLabel(m),
       players: m.participantIds.map((id) => ({
         id,
         name: nameOf(id),
@@ -862,8 +952,9 @@ export class Room {
       pointBreakdown: breakdown,
       votes,
       guesses: m.allGuesses,
+      practice: m.practice,
     };
-    this.history.unshift({
+    if (!m.practice) this.history.unshift({
       matchNumber: m.number,
       winner,
       reason,
@@ -873,7 +964,7 @@ export class Room {
       endedAt: this.now(),
     });
     if (this.history.length > HISTORY_LIMIT) this.history.length = HISTORY_LIMIT;
-    this.matchesPlayed++;
+    if (!m.practice) this.matchesPlayed++;
     m.vote = null;
     m.finalGuess = null;
     m.pendingRevote = null;
@@ -963,7 +1054,7 @@ export class Room {
 
   isAbandoned(): boolean {
     const idle = this.now() - this.lastActivity;
-    const anyoneConnected = this.activePlayers().some((p) => p.connected);
+    const anyoneConnected = this.displaySockets.size > 0 || this.activePlayers().some((p) => p.connected);
     return (!anyoneConnected && idle >= ABANDONED_EMPTY_MS) || idle >= ABANDONED_IDLE_MS;
   }
 
@@ -1057,6 +1148,7 @@ export class Room {
         grinchCount: m.grinchIds.length,
         finalGuessEnabled: m.settings.finalGuessEnabled,
         allowSkipVote: m.settings.allowSkipVote,
+        practice: m.practice,
         participantIds: [...m.participantIds],
         acknowledgedIds: [...m.acknowledged],
         speakingOrder: [...m.speakingOrder],
@@ -1079,7 +1171,7 @@ export class Room {
           : null,
         lastResult: m.lastResult,
         finalGuess: m.finalGuess
-          ? { guesserIds: [...m.finalGuess.guesserIds], submittedIds: [...m.finalGuess.guesses.keys()] }
+          ? { guesserIds: [...m.finalGuess.guesserIds], submittedIds: [] }
           : null,
         lastGuess: m.lastGuess,
         results: m.results,
@@ -1099,6 +1191,8 @@ export class Room {
       matchesPlayed: this.matchesPlayed,
       seriesComplete: this.isSeriesComplete(),
       history: this.history,
+      locked: this.locked,
+      customPack: this.customPack ? { name: this.customPack.name, count: this.customPack.words.length } : null,
     };
   }
 
@@ -1112,33 +1206,38 @@ export class Room {
       categoryName: null,
       teammates: [],
       submittedBallot: null,
-      canGuess: false,
-      guessSubmitted: false,
+      hint: null,
+      isGuessing: false,
+      canJudge: false,
+      // The host wrote these words, so sending them back to the host leaks nothing new.
+      customPackLines:
+        playerId === this.hostId && this.customPack
+          ? this.customPack.words.map((w) => (w.hint ? `${w.word} | ${w.hint}` : w.word))
+          : null,
     };
     const m = this.match;
     if (!m) return base;
     const role = m.roles.get(playerId);
-    if (!role) return { ...base, role: 'SPECTATOR' };
+    // '' = the room screen: no role at all. Anyone else not dealt in is spectating.
+    if (!role) return { ...base, role: playerId ? 'SPECTATOR' : null };
 
     const out: PrivatePlayerState = { ...base, role };
     if (role === 'ELF') {
       out.word = m.word.word;
-      out.category = m.word.category;
-      out.categoryName = categoryName(m.word.category);
+      out.category = m.word.category === 'practice' ? null : m.word.category;
+      out.categoryName = this.categoryLabel(m);
     } else {
-      if (m.settings.categoryHintForGrinch) {
-        out.category = m.word.category;
-        out.categoryName = categoryName(m.word.category);
-      }
+      // Every Grinch gets the SAME hint word (never the secret word itself).
+      if (m.settings.grinchHint) out.hint = m.word.hint || 'No hint for this one';
       out.teammates = m.grinchIds
         .filter((id) => id !== playerId)
         .map((id) => ({ id, name: this.players.get(id)?.name ?? 'Unknown', avatar: this.players.get(id)?.avatar ?? '🎁' }));
     }
     const ballot = m.vote?.ballots.get(playerId);
     if (ballot) out.submittedBallot = { picks: [...ballot.picks], skip: ballot.skip };
-    if (this.phase === 'FINAL_GUESS' && m.finalGuess?.guesserIds.includes(playerId)) {
-      out.guessSubmitted = m.finalGuess.guesses.has(playerId);
-      out.canGuess = !out.guessSubmitted;
+    if (this.phase === 'FINAL_GUESS' && m.finalGuess) {
+      out.isGuessing = m.finalGuess.guesserIds.includes(playerId);
+      out.canJudge = role === 'ELF' && !m.departedIds.includes(playerId);
     }
     return out;
   }

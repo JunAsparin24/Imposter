@@ -1,167 +1,79 @@
 # 🎄 IMPOSTER: Christmas Edition
 
-A real-time multiplayer social-deduction party game for phones. Everyone gets the same Christmas
-secret word — except the **Grinches** (imposters, red), who must bluff their way through. The
-**Elves** (innocents, green) give one-word clues out loud, discuss, and vote on their own phones
-to catch every Grinch.
+A multiplayer party game you play on your phones. Everyone gets the same secret word — except
+the **Grinches** (imposters, red), who only get a hint word and must bluff. The **Elves**
+(innocents, green) give one-word clues out loud, discuss, and vote on their phones to catch
+every Grinch.
 
-## Easiest way to play: double-click `Start IMPOSTER.bat`
+## How to play a game
 
-Works the same way as PANALO's *Start Buzzer.bat*:
+1. **Room screen:** on a laptop or TV, open the website and tap **Create Room**. That screen now
+   shows the room code and a QR code. It isn't a player.
+2. **Join:** everyone opens the website on their phone (or scans the QR code) and enters the code.
+   **The first person to join is the host** and runs the game from their phone.
+3. Optional: the host taps **Practice round** first. It uses an easy everyday word (like Pizza) and
+   gives no points, which is good for new players.
+4. **Roles:** press and hold your card. Elves see the word. Grinches see `???`, the **hint word**
+   (all Grinches get the same one), and who the other Grinches are.
+5. **Clues:** take turns saying ONE word out loud. Then discuss and vote in secret.
+6. **Final guess:** a caught Grinch says one guess **out loud**. An Elf taps **They got it** or
+   **Wrong**. Correct = the Grinches win.
 
-1. Double-click **Start IMPOSTER.bat** in this folder.
-2. **First time only:** Windows asks for administrator permission. Click **Yes**. This adds one
-   firewall rule so phones on your Wi-Fi can connect. The first run also installs and builds the
-   game, which takes a minute.
-3. The game opens in your browser. Create a room. The lobby shows a **QR code** that players scan.
-   - At first the QR code uses your Wi-Fi address, so players must be on the same Wi-Fi.
-   - A few seconds later it switches to an **online link** (`https://….trycloudflare.com`), so
-     players on any Wi-Fi or mobile data can join. The link is new every time you start.
-4. Keep the black window open while you play. Close it to stop the game.
+Scoring: Elves win +2 each · Grinches win +3 each · each vote for a Grinch +1 · correct final
+guess +3. The host can lock the room, hand over hosting, kick players, change settings, make a
+custom word pack (`Word | hint` per line), and reset scores.
 
-Options, for running `scripts\start-imposter.ps1` yourself: `-NoOnline` (same Wi-Fi only),
-`-NoBrowser`, `-NoSetup` (skip the admin/firewall step).
-To undo the firewall rule: `netsh advfirewall firewall delete rule name="IMPOSTER Christmas"`
-in an administrator PowerShell.
+## Putting it online (Render)
 
-## Quick start for developers
+The repo includes `render.yaml`, so it deploys as one web service:
 
-Requires **Node.js 20+**.
+1. In Render: **New → Blueprint**, pick this GitHub repo (or **New → Web Service** with
+   Build `npm install --include=dev && npm run build`, Start `npm start`).
+2. Every push to GitHub redeploys automatically.
+3. Share the `…onrender.com` address. People type it in, or scan the QR code on the room screen.
+
+Things to know:
+- **Rooms live in the server's memory.** A redeploy or restart ends any game in progress.
+- On Render's **free plan** the site goes to sleep after ~15 minutes with no visitors. The next
+  visit takes up to a minute to wake it up, and any old rooms are gone. Open the site a minute
+  before game night.
+
+## Running it on your computer (for testing)
+
+Requires Node.js 20+.
 
 ```bash
 npm install
-npm run dev
+npm run dev     # opens on http://localhost:5173 (phones on your Wi-Fi: use the address it prints)
+npm test        # automated tests
 ```
-
-- Open **http://localhost:5173** on your computer.
-- Phones on the **same Wi-Fi**: open `http://<your-computer-ip>:5173` (the server prints the exact
-  address on startup). On Windows, allow Node.js through the firewall when prompted.
-
-`npm run dev` starts both the game server (port 3001) and the Vite dev server (port 5173, which
-proxies `/socket.io` to the game server).
-
-### Production mode (one process)
-
-```bash
-npm run build   # builds the React app into client/dist
-npm start       # game server on PORT (default 3001) also serves the app
-```
-
-Then open `http://localhost:3001` (or `http://<your-ip>:3001` from phones).
-
-### Tests
-
-```bash
-npm test          # 38 server tests: game rules, role privacy, Socket.IO multi-client integration
-npm run typecheck # shared + server + client
-```
-
-## Deploying so friends can join from anywhere
-
-The app deploys as **one Node web service** (the server hosts the built frontend), so the invite
-link and QR code work automatically. Any host that runs a long-lived Node process and supports
-WebSockets works (Render, Railway, Fly.io, a VPS…). Serverless/edge "functions" hosts do **not**
-work, because Socket.IO needs a persistent server.
-
-**Render (free tier)** — `render.yaml` is included:
-
-1. Push this repo to GitHub.
-2. In Render: *New → Blueprint* → pick the repo. Or create a *Web Service* manually with  
-   Build: `npm install --include=dev && npm run build` · Start: `npm start`.
-3. Open the `.onrender.com` URL and share the room link/QR.
-
-Environment variables (all optional):
-
-| Variable         | Purpose                                                                       |
-| ---------------- | ----------------------------------------------------------------------------- |
-| `PORT`           | Port to listen on (hosts usually set this).                                  |
-| `TRUST_PROXY`    | Set to `1` behind a proxy/load balancer so rate limits see real client IPs.  |
-| `CLIENT_ORIGINS` | Extra allowed browser origins, comma-separated (same-origin is always allowed). Only needed if you host the frontend separately, together with `VITE_SERVER_URL` at build time. |
-
-> ⚠️ **Rooms live in memory.** Restarting/redeploying the server ends all games. Free hosts that
-> sleep when idle will also clear rooms. The storage layer (`server/src/net/roomStore.ts`) is an
-> interface so it can be swapped for Redis later.
-
-## How a match works
-
-1. **Lobby** — host creates a room (6-character code, invite link, QR code). Players join with a
-   name + avatar. No accounts.
-2. **Role reveal** — each phone privately shows *tap-and-hold to reveal* (or tap-to-toggle).
-   Elves see the word + category. Grinches see `???` and **always see their fellow Grinches**
-   ("You're the only Grinch" when alone). The role can be reopened any time via **My role**.
-3. **Clues** — a server-shuffled speaking order. The current speaker taps *Done speaking* (or the
-   host skips). The first speaker rotates each round.
-4. **Discussion** — optional timer the host can pause, extend (+30s), or skip.
-5. **Voting** — secret ballots on each phone; only the count of submitted votes is shown.
-   Ties → revote among the tied players → tie again → nobody is eliminated.
-6. **Results** — the voted-out player's role is revealed. A caught Grinch may get a **final guess**:
-   correct = the whole Grinch team wins.
-7. **End** — Elves win when every Grinch is out; Grinches win when they equal or outnumber the
-   Elves. Then: full reveal, points, scoreboard, *Play again*.
-
-**Scoring:** Elves win +2 each · Grinches win +3 each · each vote for a Grinch +1 · correct final
-guess +3 bonus. Scores persist across matches in the room until the host resets them.
-
-### Voting systems
-
-- **Elimination** (default) — vote someone out every round until a team wins.
-- **Single vote** — one decisive vote; each ballot names as many players as there are Grinches.
-  Catch every Grinch → Elves win (unless a final guess succeeds). Name any Elf → Grinches win.
-
-### Fairness & edge-case policies
-
-- **Disconnects:** your seat, role, and score are kept; refresh or reopen the page to rejoin
-  (a reconnect token is stored in the browser). Opening the game in a second tab moves your
-  session there.
-- **Speaker offline:** their turn is skipped after 20 s.
-- **Voter offline:** voting closes once every remaining voter has been offline for 20 s, or when
-  the voting timer ends. Missing ballots count as abstentions. The host can also end voting early.
-- **Host offline:** keeps the host role for 30 s, then it passes to the longest-connected player.
-  If the host leaves, it passes immediately.
-- **Leaving mid-match:** the player is out of the match and their role is revealed; win
-  conditions are re-checked right away.
-- **Joining mid-match** is blocked; players can join between matches.
-- **Settings changed mid-match** only apply to the next match.
-- Abandoned rooms are deleted after 10 minutes with nobody connected.
 
 ## Project structure
 
 ```
-shared/   Types, constants, and rules shared by server + client (the event contract)
-server/   Express + Socket.IO game server (authoritative)
-  src/game/Room.ts       The state machine: roles, turns, votes, wins, scoring, privacy
-  src/game/wordBank.ts   Loads word packs, picks words, checks final guesses
-  src/words/*.json       Christmas word packs (10 categories, 50+ words each) + Undercover pairs
-  src/net/gameServer.ts  Socket.IO wiring: validation, auth by session, rate limits, timers
-  test/                  Vitest unit + multi-client integration tests
-client/   React + Vite + Tailwind + Framer Motion mobile-first UI
+shared/   Types and rules shared by server + client
+server/   Express + Socket.IO game server (decides everything: roles, votes, wins, points)
+  src/game/Room.ts       The game rules
+  src/words/*.json       Word lists: [word, hint] pairs, one file per category
+  src/words/practice.json  Easy words for the practice round
+client/   React website (phones + room screen)
 ```
 
-### Security model
+## Editing the words
 
-- The server decides everything: roles, word, who may act, eliminations, wins, points.
-- Identity comes only from the server-issued session bound to the socket — player IDs sent by a
-  client are ignored. Reconnect tokens are random 192-bit values.
-- Each player receives a **separate private payload**; the public snapshot never contains the word,
-  live roles, or individual ballots (tests assert this over real sockets). Grinch browsers never
-  receive the word at all.
-- Every event is schema-validated (zod), rate-limited, and checked against the current phase.
-  Host actions carry a phase sequence number so double taps can't advance a phase twice.
-- Room codes and role assignment use Node's `crypto` RNG.
-
-## Adding words
-
-Edit or add a JSON file in `server/src/words/`:
+Each file in `server/src/words/` looks like:
 
 ```json
-{ "id": "food", "words": ["Eggnog", { "word": "Hot Chocolate", "aliases": ["Hot Cocoa"] }] }
+{ "id": "food", "words": [["Cookies", "Oven"], ["Hot Chocolate", "Mug"]] }
 ```
 
-`aliases` are extra answers accepted for the final guess (no fuzzy matching). New categories also
-need an entry in `CATEGORIES` in `shared/src/constants.ts`.
+The second item is the hint every Grinch sees. Keep words easy and familiar, and don't make the
+hint give the word away.
 
-## Roadmap
+## Privacy & fairness
 
-- **Phase 2:** custom word packs from the host, richer stats, more host controls.
-- **Phase 3:** more sounds/animations, accessibility and reconnect polish.
-- **Phase 4:** Undercover mode (pairs already authored in `undercover-pairs.json`) and Chaos mode.
+- The server deals the roles. A Grinch's phone never receives the secret word, and only Grinches
+  receive the hint. The room screen only gets public info.
+- Votes stay secret until the match ends. Only Elves (who know the word) can confirm a final guess.
+- Disconnected players keep their seat. Refreshing puts them straight back in. A disconnected
+  speaker is skipped after 20 s, and voting doesn't wait forever for offline phones.

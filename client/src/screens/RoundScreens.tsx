@@ -1,10 +1,11 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, FastForward, Mic, Pause, Play, Plus, Vote } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Avatar, TimerRing } from '../components/decor';
+import { Avatar, AvatarImg, TimerRing } from '../components/decor';
 import { RoleCard } from '../components/RoleCard';
 import { ActionBar, Button } from '../components/ui';
 import { play } from '../lib/sound';
+import { useFinalSecondsTick } from '../lib/hooks';
 import { formatSeconds, useCountdown } from '../lib/useCountdown';
 import { useRoom } from '../state/GameProvider';
 
@@ -26,7 +27,7 @@ export function EliminatedNotice() {
   if (me?.status !== 'ELIMINATED') return null;
   return (
     <p className="rounded-2xl bg-white/[0.04] px-4 py-3 text-center text-sm text-night-300">
-      👻 You've been eliminated. Watch and listen — no more clues or votes for you this match.
+      You're out. Keep watching, but no more clues or votes this match.
     </p>
   );
 }
@@ -45,7 +46,7 @@ export function RoleRevealScreen() {
   return (
     <div className="flex flex-1 flex-col gap-5">
       <PhaseTitle
-        kicker={`Match ${m.number}`}
+        kicker={m.practice ? "Practice round · no points" : `Match ${m.number}`}
         title="Your secret role"
         sub={
           <>
@@ -68,7 +69,7 @@ export function RoleRevealScreen() {
                 ok ? 'bg-elf/15 text-elf-light' : 'bg-white/[0.05] text-night-400'
               }`}
             >
-              {p.avatar} {p.name} {ok && <Check size={12} strokeWidth={3} />}
+              <AvatarImg id={p.avatar} size={18} /> {p.name} {ok && <Check size={12} strokeWidth={3} />}
             </span>
           );
         })}
@@ -82,7 +83,7 @@ export function RoleRevealScreen() {
         )}
         {acked && !isHost && (
           <p className="py-2 text-center text-sm text-night-300">
-            Got it ✓ Waiting for {waiting.length ? waiting.map((p) => p.name).join(', ') : 'the host'}…
+            Got it. Waiting for {waiting.length ? waiting.map((p) => p.name).join(', ') : 'the host'}…
           </p>
         )}
         {isHost && (
@@ -116,13 +117,14 @@ export function ClueScreen() {
   const next = playerById(m.nextSpeakerId);
   const isMe = !!current && current.id === session?.playerId;
   const left = useCountdown(room.deadline, clockOffset);
+  useFinalSecondsTick(left);
   const lastGuesser = playerById(m.lastGuess?.playerId);
 
   return (
     <div className="flex flex-1 flex-col gap-5">
       {m.round > 1 && m.lastGuess && !m.lastGuess.correct && lastGuesser && (
         <p className="rounded-2xl bg-elf/10 px-4 py-2.5 text-center text-sm font-semibold text-elf-light">
-          {lastGuesser.name}'s final guess was wrong — the hunt continues!
+          {lastGuesser.name}'s final guess was wrong. The game goes on.
         </p>
       )}
       <EliminatedNotice />
@@ -167,7 +169,7 @@ export function ClueScreen() {
 
       {next && (
         <p className="text-center text-sm text-night-300">
-          Up next: <b className="text-snow">{next.avatar} {next.name}</b>
+          Up next: <b className="inline-flex items-center gap-1 text-snow"><AvatarImg id={next.avatar} size={20} /> {next.name}</b>
         </p>
       )}
 
@@ -191,7 +193,7 @@ export function ClueScreen() {
                       : 'bg-white/[0.05] text-night-300'
               }`}
             >
-              <span className="opacity-60">{i + 1}</span> {p.avatar} {p.name}
+              <span className="opacity-60">{i + 1}</span> <AvatarImg id={p.avatar} size={18} /> {p.name}
               {done && <Check size={12} strokeWidth={3} />}
             </li>
           );
@@ -209,7 +211,7 @@ export function ClueScreen() {
             Skip {current.name}'s turn
           </Button>
         )}
-        {!isMe && !isHost && <p className="py-2 text-center text-sm text-night-300">Listen closely… 👂</p>}
+        {!isMe && !isHost && <p className="py-2 text-center text-sm text-night-300">Listen closely.</p>}
       </ActionBar>
     </div>
   );
@@ -241,7 +243,7 @@ export function DiscussionScreen() {
   return (
     <div className="flex flex-1 flex-col gap-5">
       <EliminatedNotice />
-      <PhaseTitle kicker={`Round ${m.round}`} title="Discuss!" sub="Who's the Grinch? Talk it out — out loud." tone="gold" />
+      <PhaseTitle kicker={`Round ${m.round}`} title="Discuss!" sub="Who's the Grinch? Talk it out." tone="gold" />
 
       <div className="flex justify-center">
         {hasTimer ? (
@@ -251,7 +253,7 @@ export function DiscussionScreen() {
             <TimerRing msLeft={left} totalMs={total} size={136} label={formatSeconds(left)} paused={paused} />
           )
         ) : (
-          <p className="rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-night-300">No timer — the host starts the vote.</p>
+          <p className="rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-night-300">No timer. The host starts the vote.</p>
         )}
       </div>
 

@@ -1,7 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { Ack, PublicPlayer, SessionInfo, StateEnvelope } from '@imposter/shared';
+import type { Ack, DisplaySession, PublicPlayer, SessionInfo, StateEnvelope } from '@imposter/shared';
 import { emitAck, socket } from '../lib/socket';
-import { loadPrefs, loadSession, saveProfile, savePrefs, saveSession, type Prefs } from '../lib/storage';
+import {
+  loadDisplay,
+  loadPrefs,
+  loadSession,
+  saveDisplay,
+  saveProfile,
+  savePrefs,
+  saveSession,
+  type Prefs,
+} from '../lib/storage';
 import { play, setMuted, setRoomSoundEnabled } from '../lib/sound';
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'offline';
@@ -14,9 +23,12 @@ export interface Toast {
 
 interface GameContextValue {
   status: ConnectionStatus;
-  /** True while we try to restore a saved session on page load. */
+  /** True while we try to restore a saved seat / room screen on page load. */
   restoring: boolean;
+  /** Set when this device is a player in a room. */
   session: SessionInfo | null;
+  /** Set when this device is the room screen (it created the room). */
+  display: DisplaySession | null;
   state: StateEnvelope | null;
   /** serverNow - clientNow, used to render server deadlines correctly. */
   clockOffset: number;
@@ -28,9 +40,15 @@ interface GameContextValue {
   toast: (text: string, tone?: Toast['tone']) => void;
   /** Sends an action; shows an error toast automatically on failure. */
   send: <T = null>(event: Parameters<typeof emitAck>[0], payload?: unknown, opts?: { quiet?: boolean }) => Promise<Ack<T>>;
-  createRoom: (name: string, avatar: string) => Promise<Ack<SessionInfo>>;
+  /** Creates an EMPTY room and turns this device into its room screen. */
+  createRoom: () => Promise<Ack<DisplaySession>>;
   joinRoom: (code: string, name: string, avatar: string) => Promise<Ack<SessionInfo>>;
   leaveRoom: () => Promise<void>;
+  /** Stop being the room screen (the room stays open for its players). */
+  closeDisplay: () => Promise<void>;
+  /** The room screen wants to join its own room as a player (shows the join form). */
+  joiningHere: boolean;
+  setJoiningHere: (v: boolean) => void;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -38,14 +56,20 @@ const GameContext = createContext<GameContextValue | null>(null);
 export function GameProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<ConnectionStatus>(socket.connected ? 'connected' : 'connecting');
   const [session, setSession] = useState<SessionInfo | null>(() => loadSession());
-  const [restoring, setRestoring] = useState<boolean>(() => !!loadSession());
+  const [display, setDisplay] = useState<DisplaySession | null>(() => (loadSession() ? null : loadDisplay()));
+  const [restoring, setRestoring] = useState<boolean>(() => !!loadSession() || !!loadDisplay());
   const [state, setState] = useState<StateEnvelope | null>(null);
   const [clockOffset, setClockOffset] = useState(0);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [prefs, setPrefsState] = useState<Prefs>(() => loadPrefs());
+  const [joiningHere, setJoiningHere] = useState(false);
   const sessionRef = useRef(session);
   sessionRef.current = session;
+  const displayRef = useRef(display);
+  displayRef.current = display;
   const toastId = useRef(0);
+  const wasOffline = useRef(false);
+  const retryTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const toast = useCallback((text: string, tone: Toast['tone'] = 'info') => {
     const id = ++toastId.current;
@@ -67,37 +91,73 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const storeSession = useCallback((s: SessionInfo | null) => {
     saveSession(s);
     setSession(s);
-    if (!s) setState(null);
+    if (s) {
+      // A device is either a player or a room screen, never both.
+      saveDisplay(null);
+      setDisplay(null);
+    } else if (!displayRef.current) {
+      setState(null);
+    }
   }, []);
 
-  // Socket lifecycle: (re)authenticate with the saved token whenever the connection (re)opens.
+  const storeDisplay = useCallback((d: DisplaySession | null) => {
+    saveDisplay(d);
+    setDisplay(d);
+    if (!d && !sessionRef.current) setState(null);
+  }, []);
+
+  // Socket lifecycle: (re)authenticate whenever the connection (re)opens.
   useEffect(() => {
     const tryRestore = async () => {
       const saved = sessionRef.current;
-      if (!saved) {
+      const screen = displayRef.current;
+      if (!saved && !screen) {
         setRestoring(false);
         return;
       }
-      const res = await emitAck<SessionInfo>('room:reconnect', { code: saved.code, token: saved.token });
+      const res = saved
+        ? await emitAck<SessionInfo>('room:reconnect', { code: saved.code, token: saved.token })
+        : await emitAck<DisplaySession>('room:watch', { code: screen!.code, displayToken: screen!.displayToken });
       if (res.ok) {
-        storeSession(res.data);
+        if (saved) storeSession(res.data as SessionInfo);
+        if (wasOffline.current) toast('Reconnected.', 'success');
       } else if (res.error.code === 'ROOM_NOT_FOUND' || res.error.code === 'INVALID_SESSION') {
-        storeSession(null);
+        if (saved) storeSession(null);
+        else storeDisplay(null);
         toast('Your previous room has ended.', 'info');
+      } else {
+        // Temporary problem (slow network, rate limit): keep the seat and try again shortly.
+        clearTimeout(retryTimer.current);
+        retryTimer.current = setTimeout(() => socket.connected && void tryRestore(), 2500);
+        return;
       }
+      wasOffline.current = false;
       setRestoring(false);
     };
     const onConnect = () => {
       setStatus('connected');
       void tryRestore();
     };
-    const onDisconnect = () => setStatus('offline');
+    const onDisconnect = (reason?: unknown) => {
+      setStatus('offline');
+      if (sessionRef.current || displayRef.current) wasOffline.current = true;
+      // If the server dropped us on purpose, socket.io won't retry by itself.
+      if (reason === 'io server disconnect') socket.connect();
+    };
+    // Phones suspend tabs: as soon as the game is visible / online again, reconnect right away.
+    const wake = () => {
+      if (document.visibilityState === 'visible' && !socket.connected) socket.connect();
+    };
+    document.addEventListener('visibilitychange', wake);
+    window.addEventListener('online', wake);
+    window.addEventListener('focus', wake);
     const onState = (env: StateEnvelope) => {
       setClockOffset(env.serverNow - Date.now());
       setState(env);
     };
     const onEnded = ({ reason }: { reason: string }) => {
       storeSession(null);
+      storeDisplay(null);
       if (reason === 'KICKED') toast('You were removed from the room by the host.', 'error');
       else if (reason === 'REPLACED') toast('You opened this game somewhere else, so this tab was disconnected.', 'info');
       else toast('The room was closed after being inactive.', 'info');
@@ -114,8 +174,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
       socket.off('connect_error', onDisconnect);
       socket.off('game:stateUpdated', onState);
       socket.off('session:ended', onEnded);
+      document.removeEventListener('visibilitychange', wake);
+      window.removeEventListener('online', wake);
+      window.removeEventListener('focus', wake);
+      clearTimeout(retryTimer.current);
     };
-  }, [storeSession, toast]);
+  }, [storeSession, storeDisplay, toast]);
 
   const send = useCallback<GameContextValue['send']>(
     async (event, payload = {}, opts = {}) => {
@@ -127,18 +191,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
     [toast, storeSession],
   );
 
-  const createRoom = useCallback(
-    async (name: string, avatar: string) => {
-      saveProfile({ name, avatar });
-      const res = await emitAck<SessionInfo>('room:create', { name, avatar });
-      if (res.ok) {
-        storeSession(res.data);
-        play('join');
-      }
-      return res;
-    },
-    [storeSession],
-  );
+  const createRoom = useCallback(async () => {
+    const res = await emitAck<DisplaySession>('room:create', {});
+    if (res.ok) {
+      storeDisplay(res.data);
+      play('join');
+    }
+    return res;
+  }, [storeDisplay]);
 
   const joinRoom = useCallback(
     async (code: string, name: string, avatar: string) => {
@@ -146,6 +206,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       const res = await emitAck<SessionInfo>('room:join', { code, name, avatar });
       if (res.ok) {
         storeSession(res.data);
+        setJoiningHere(false);
         play('join');
       }
       return res;
@@ -158,13 +219,20 @@ export function GameProvider({ children }: { children: ReactNode }) {
     storeSession(null);
   }, [storeSession]);
 
+  const closeDisplay = useCallback(async () => {
+    await emitAck('room:unwatch', {});
+    storeDisplay(null);
+  }, [storeDisplay]);
+
   const value = useMemo<GameContextValue>(() => {
     const me = state?.room.players.find((p) => p.id === session?.playerId);
+    const active = session || display ? state : null;
     return {
       status,
       restoring,
       session,
-      state: session ? state : null,
+      display,
+      state: active,
       clockOffset,
       me,
       isHost: !!me && me.isHost,
@@ -176,8 +244,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
       createRoom,
       joinRoom,
       leaveRoom,
+      closeDisplay,
+      joiningHere,
+      setJoiningHere,
     };
-  }, [status, restoring, session, state, clockOffset, prefs, setPrefs, toasts, toast, send, createRoom, joinRoom, leaveRoom]);
+  }, [status, restoring, session, display, state, clockOffset, prefs, setPrefs, toasts, toast, send, createRoom, joinRoom, leaveRoom, closeDisplay, joiningHere]);
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }
@@ -203,5 +274,6 @@ export function useRoom() {
   const { room, me: priv } = state;
   const playerById = (id: string | null | undefined) => room.players.find((p) => p.id === id);
   const me = room.players.find((p) => p.id === g.session?.playerId);
-  return { ...g, state, me, isHost: !!me?.isHost, room, priv, playerById };
+  const isDisplay = state.viewer === 'display';
+  return { ...g, state, me, isHost: !!me?.isHost, isDisplay, room, priv, playerById };
 }

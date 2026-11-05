@@ -36,6 +36,9 @@ export type CategoryId =
   | 'gadgets'
   | 'decorations'
   | 'characters'
+  | 'clothing'
+  | 'weather'
+  | 'custom'
   | 'random';
 
 export interface GameSettings {
@@ -52,7 +55,8 @@ export interface GameSettings {
   votingSeconds: number;
   finalGuessEnabled: boolean;
   soundEnabled: boolean;
-  categoryHintForGrinch: boolean;
+  /** Grinches all get the same hint word for the secret word. */
+  grinchHint: boolean;
   allowSkipVote: boolean;
   /** Automatically move on when discussion / result timers expire. */
   autoAdvance: boolean;
@@ -70,6 +74,9 @@ export interface PlayerStats {
   grinchMatches: number;
   correctVotes: number;
   correctGuesses: number;
+  elfWins: number;
+  grinchWins: number;
+  timesVotedOut: number;
 }
 
 export interface PublicPlayer {
@@ -171,7 +178,7 @@ export interface MatchResults {
   winner: Team;
   reason: WinReason;
   word: string;
-  category: CategoryId;
+  category: CategoryId | 'practice';
   categoryName: string;
   players: ResultPlayer[];
   /** Points earned this match, per player id. */
@@ -179,7 +186,9 @@ export interface MatchResults {
   /** Human-readable reasons for points, per player id. */
   pointBreakdown: Record<string, string[]>;
   votes: VoteHistoryEntry[];
-  guesses: { playerId: string; guess: string; correct: boolean }[];
+  guesses: { playerId: string; correct: boolean }[];
+  /** Practice rounds award no points and don't count towards stats. */
+  practice: boolean;
 }
 
 export interface MatchSummary {
@@ -201,6 +210,8 @@ export interface PublicMatchState {
   grinchCount: number;
   finalGuessEnabled: boolean;
   allowSkipVote: boolean;
+  /** Practice round: easy everyday word, no points. */
+  practice: boolean;
   participantIds: string[];
   acknowledgedIds: string[];
   speakingOrder: string[];
@@ -232,6 +243,10 @@ export interface PublicRoomState {
   matchesPlayed: number;
   seriesComplete: boolean;
   history: MatchSummary[];
+  /** Host has locked the room: nobody new can join. */
+  locked: boolean;
+  /** The host's custom word pack (never the words themselves - those would help Grinches). */
+  customPack: { name: string; count: number } | null;
 }
 
 /** Sent only to the one player it belongs to. */
@@ -240,20 +255,34 @@ export interface PrivatePlayerState {
   role: Role | 'SPECTATOR' | null;
   /** Only ever set for ELF players. */
   word: string | null;
-  /** Elves always; Grinches only when the category hint setting is on. */
+  /** Elves only. */
   category: CategoryId | null;
   categoryName: string | null;
+  /** Grinches only (when the hint setting is on): the same hint word every Grinch gets. */
+  hint: string | null;
   /** Grinch only: the other Grinches this match. */
   teammates: { id: string; name: string; avatar: string }[];
   submittedBallot: { picks: string[]; skip: boolean } | null;
-  canGuess: boolean;
-  guessSubmitted: boolean;
+  /** I'm the caught Grinch who gets to say a final guess out loud. */
+  isGuessing: boolean;
+  /** I'm an Elf (I know the word), so I can confirm whether the spoken guess was right. */
+  canJudge: boolean;
+  /** Host only: the room's custom word pack, one entry per line ("Word | hint"). */
+  customPackLines: string[] | null;
 }
 
 export interface StateEnvelope {
   serverNow: number;
   room: PublicRoomState;
   me: PrivatePlayerState;
+  /** 'display' = the shared room screen (the device that created the room). It has no role. */
+  viewer: 'player' | 'display';
+}
+
+/** The device that created the room shows it on screen; this token lets it reconnect. */
+export interface DisplaySession {
+  code: string;
+  displayToken: string;
 }
 
 export interface SessionInfo {
@@ -278,6 +307,7 @@ export type ErrorCode =
   | 'INVALID_SETTINGS'
   | 'ALREADY_SUBMITTED'
   | 'RATE_LIMITED'
+  | 'ROOM_LOCKED'
   | 'INTERNAL';
 
 export interface GameErrorPayload {
@@ -297,7 +327,9 @@ export interface RoomCheckResult {
 export type DiscussionAction = 'pause' | 'resume' | 'extend';
 
 export interface ClientToServerEvents {
-  'room:create': (p: { name: string; avatar: string }, ack: AckFn<SessionInfo>) => void;
+  'room:create': (p: Record<string, never>, ack: AckFn<DisplaySession>) => void;
+  'room:watch': (p: { code: string; displayToken: string }, ack: AckFn<DisplaySession>) => void;
+  'room:unwatch': (p: Record<string, never>, ack: AckFn) => void;
   'room:check': (p: { code: string }, ack: AckFn<RoomCheckResult>) => void;
   'room:join': (p: { code: string; name: string; avatar: string }, ack: AckFn<SessionInfo>) => void;
   'room:reconnect': (p: { code: string; token: string }, ack: AckFn<SessionInfo>) => void;
@@ -305,7 +337,7 @@ export interface ClientToServerEvents {
   'room:kick': (p: { playerId: string }, ack: AckFn) => void;
   'room:updateSettings': (p: { settings: Partial<GameSettings> }, ack: AckFn) => void;
   'player:ready': (p: { ready: boolean }, ack: AckFn) => void;
-  'game:start': (p: Record<string, never>, ack: AckFn) => void;
+  'game:start': (p: { practice?: boolean }, ack: AckFn) => void;
   'game:nextMatch': (p: Record<string, never>, ack: AckFn) => void;
   'game:roleAcknowledged': (p: Record<string, never>, ack: AckFn) => void;
   'game:beginClues': (p: { phaseSeq: number }, ack: AckFn) => void;
@@ -315,9 +347,12 @@ export interface ClientToServerEvents {
   'game:submitVote': (p: { voteId: string; picks: string[]; skip: boolean }, ack: AckFn) => void;
   'game:closeVoting': (p: { phaseSeq: number }, ack: AckFn) => void;
   'game:continue': (p: { phaseSeq: number }, ack: AckFn) => void;
-  'game:submitGuess': (p: { guess: string }, ack: AckFn<{ correct: boolean }>) => void;
+  'game:judgeGuess': (p: { correct: boolean; phaseSeq: number }, ack: AckFn) => void;
   'game:returnToLobby': (p: Record<string, never>, ack: AckFn) => void;
   'game:resetScores': (p: Record<string, never>, ack: AckFn) => void;
+  'room:setCustomPack': (p: { name: string; lines: string[] }, ack: AckFn<{ count: number }>) => void;
+  'room:transferHost': (p: { playerId: string }, ack: AckFn) => void;
+  'room:setLocked': (p: { locked: boolean }, ack: AckFn) => void;
 }
 
 export interface ServerToClientEvents {

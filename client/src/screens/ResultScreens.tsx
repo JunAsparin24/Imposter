@@ -1,18 +1,18 @@
 import { motion } from 'framer-motion';
 import { History, Home, Play, RotateCcw, Settings2, Trophy } from 'lucide-react';
 import { useState } from 'react';
-import type { MatchResults, WinReason } from '@imposter/shared';
-import { Avatar, Confetti } from '../components/decor';
+import type { MatchResults, PlayerStats, PublicPlayer, WinReason } from '@imposter/shared';
+import { Avatar, AvatarImg, Confetti, CountUp } from '../components/decor';
 import { SettingsSheet } from '../components/SettingsSheet';
-import { ActionBar, Button, ConfirmButton, SectionTitle } from '../components/ui';
+import { ActionBar, Button, ConfirmButton, SectionTitle, Sheet } from '../components/ui';
 import { useRoom } from '../state/GameProvider';
 
 const REASONS: Record<WinReason, string> = {
-  GRINCHES_CAUGHT: 'Every Grinch was caught. Christmas is saved! 🎄',
-  GRINCHES_OUTNUMBER: 'The Grinches now equal the Elves. Christmas is ruined! 😈',
-  FINAL_GUESS: 'A caught Grinch guessed the secret word and stole Christmas! 🎯',
-  INNOCENT_ACCUSED: 'The group accused an innocent Elf. The Grinches got away! 😈',
-  GRINCHES_LEFT: 'The Grinches fled the party. The Elves win! 🏃',
+  GRINCHES_CAUGHT: 'Every Grinch got caught.',
+  GRINCHES_OUTNUMBER: 'There are as many Grinches left as Elves.',
+  FINAL_GUESS: 'The caught Grinch guessed the secret word.',
+  INNOCENT_ACCUSED: 'The group voted out an Elf. The Grinches got away.',
+  GRINCHES_LEFT: 'The Grinches left the game.',
 };
 
 // ───────────────────────────── ROUND RESULTS ─────────────────────────────
@@ -41,13 +41,11 @@ export function RoundResultsScreen() {
           elvesWon ? 'border-elf/60 bg-elf/10 shadow-glow-green' : 'border-grinch/60 bg-grinch/10 shadow-glow-red'
         }`}
       >
-        <p className="text-5xl" aria-hidden>
-          {elvesWon ? '🧝🎄' : '😈🎁'}
-        </p>
         <h1 className={`heading mt-2 text-[clamp(2rem,10vw,3rem)] ${elvesWon ? 'text-elf' : 'text-grinch'}`}>
           {elvesWon ? 'The Elves win!' : 'The Grinches win!'}
         </h1>
         <p className="mt-2 text-sm text-snow/85">{REASONS[res.reason]}</p>
+        {res.practice && <p className="mt-2 text-xs font-bold uppercase tracking-widest text-gold">Practice round · no points</p>}
         {myResult && (
           <p className={`mt-3 text-sm font-bold ${iWon ? 'text-gold' : 'text-night-300'}`}>
             {iWon ? 'Your team won!' : 'Your team lost this one.'}
@@ -66,7 +64,7 @@ export function RoundResultsScreen() {
         <RoleList title="Elves" tone="elf" players={elves} />
       </div>
 
-      <section className="card p-4">
+      {!res.practice && <section className="card p-4">
         <SectionTitle>Points this match</SectionTitle>
         <ul className="space-y-2">
           {earned.map((p) => (
@@ -80,14 +78,14 @@ export function RoundResultsScreen() {
             </li>
           ))}
         </ul>
-      </section>
+      </section>}
 
       <VoteSummary res={res} nameOf={nameOf} />
 
       <ActionBar>
         {isHost ? (
           <Button block size="lg" variant="gold" icon={<Trophy size={19} />} onClick={() => void send('game:continue', { phaseSeq: room.phaseSeq })}>
-            See the scoreboard
+            {res.practice ? "Back to the lobby" : "See the scoreboard"}
           </Button>
         ) : (
           <p className="py-2 text-center text-sm text-night-300">Waiting for the host…</p>
@@ -101,12 +99,12 @@ function RoleList({ title, tone, players }: { title: string; tone: 'grinch' | 'e
   return (
     <section className={`rounded-3xl border p-4 ${tone === 'grinch' ? 'border-grinch/30 bg-grinch/[0.06]' : 'border-elf/30 bg-elf/[0.06]'}`}>
       <p className={`heading mb-2 text-lg ${tone === 'grinch' ? 'text-grinch' : 'text-elf'}`}>
-        {tone === 'grinch' ? '😈' : '🧝'} {title}
+        {title}
       </p>
       <ul className="space-y-1.5">
         {players.map((p) => (
           <li key={p.id} className="flex items-center gap-2 text-sm">
-            <span aria-hidden>{p.avatar}</span>
+            <AvatarImg id={p.avatar} size={20} />
             <span className={`truncate font-semibold ${p.eliminated || p.left ? 'text-night-400' : ''}`}>{p.name}</span>
             {p.eliminated && <span className="text-xs text-night-400">· voted out</span>}
             {p.left && <span className="text-xs text-night-400">· left</span>}
@@ -127,7 +125,7 @@ function VoteSummary({ res, nameOf }: { res: MatchResults; nameOf: (id: string) 
         : kind === 'SKIPPED'
           ? 'Skipped'
           : kind === 'NO_DECISION'
-            ? 'Tied again — nobody out'
+            ? 'Tied again, nobody out'
             : 'No votes';
   return (
     <details className="card group p-4">
@@ -139,7 +137,7 @@ function VoteSummary({ res, nameOf }: { res: MatchResults; nameOf: (id: string) 
         {res.votes.map((v, i) => (
           <div key={i} className="rounded-2xl bg-white/[0.03] p-3 text-sm">
             <p className="font-bold">
-              Round {v.round} {v.isRevote ? 'revote' : 'vote'} — <span className="text-gold">{outcome(v.kind, v.playerIds)}</span>
+              Round {v.round} {v.isRevote ? 'revote' : 'vote'}: <span className="text-gold">{outcome(v.kind, v.playerIds)}</span>
             </p>
             <ul className="mt-1.5 space-y-0.5 text-xs text-night-300">
               {v.ballots.map((b) => (
@@ -152,7 +150,7 @@ function VoteSummary({ res, nameOf }: { res: MatchResults; nameOf: (id: string) 
         ))}
         {res.guesses.map((g, i) => (
           <p key={i} className="rounded-2xl bg-white/[0.03] p-3 text-sm">
-            🎯 {nameOf(g.playerId)} guessed “{g.guess || '—'}” —{' '}
+            {nameOf(g.playerId)}'s final guess was{' '}
             <b className={g.correct ? 'text-grinch' : 'text-elf'}>{g.correct ? 'correct!' : 'wrong'}</b>
           </p>
         ))}
@@ -169,10 +167,10 @@ export function ScoreboardScreen() {
   const [busy, setBusy] = useState(false);
   const players = room.players.filter((p) => p.status !== 'LEFT').sort((a, b) => b.score - a.score);
   const total = room.settings.totalMatches;
-  const medals = ['🥇', '🥈', '🥉'];
   // Shared ranks for tied scores (1, 2, 2, 4).
   const rankOf = (score: number) => players.findIndex((p) => p.score === score) + 1;
   const leader = players[0];
+  const [statsFor, setStatsFor] = useState<string | null>(null);
 
   return (
     <div className="flex flex-1 flex-col gap-5">
@@ -181,7 +179,7 @@ export function ScoreboardScreen() {
         <h1 className="heading mt-1 text-[clamp(2rem,10vw,2.75rem)] text-gold">Scoreboard</h1>
         {room.seriesComplete && leader && (
           <p className="mt-2 text-sm font-bold text-snow">
-            🏆 Series complete! {leader.avatar} {leader.name} wins with {leader.score} points!
+            Series complete! <AvatarImg id={leader.avatar} size={20} /> {leader.name} wins with {leader.score} points!
           </p>
         )}
       </div>
@@ -191,14 +189,21 @@ export function ScoreboardScreen() {
           const rank = rankOf(p.score);
           const mine = p.id === session?.playerId;
           return (
-            <motion.li
-              key={p.id}
-              initial={{ opacity: 0, x: -16 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 ${mine ? 'bg-gold/10 ring-1 ring-gold/40' : 'bg-white/[0.04]'}`}
-            >
-              <span className="w-8 text-center font-display text-lg">{medals[rank - 1] ?? rank}</span>
+            <motion.li key={p.id} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
+              <button
+                onClick={() => setStatsFor(p.id)}
+                aria-label={`${p.name}: ${p.score} points. Show stats.`}
+                className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors hover:bg-white/[0.07] ${
+                  mine ? 'bg-gold/10 ring-1 ring-gold/40' : 'bg-white/[0.04]'
+                }`}
+              >
+              <span
+                className={`grid h-8 w-8 shrink-0 place-items-center rounded-full font-display text-sm ${
+                  rank === 1 ? 'bg-gold text-night-950' : rank === 2 ? 'bg-night-300 text-night-950' : rank === 3 ? 'bg-[#c27c4a] text-night-950' : 'bg-white/[0.06] text-night-300'
+                }`}
+              >
+                {rank}
+              </span>
               <Avatar emoji={p.avatar} size={40} dim={!p.connected} />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-bold">
@@ -209,11 +214,15 @@ export function ScoreboardScreen() {
                   {p.stats.wins}/{p.stats.matchesPlayed} wins · {p.stats.grinchMatches}× Grinch · {p.stats.correctVotes} good votes
                 </p>
               </div>
-              <span className="font-display text-xl tabular-nums text-gold">{p.score}</span>
+              <span className="font-display text-xl tabular-nums text-gold"><CountUp from={Math.max(0, p.score - (room.history[0]?.pointsEarned[p.id] ?? 0))} to={p.score} delay={0.3 + i * 0.05} /></span>
+              </button>
             </motion.li>
           );
         })}
       </ol>
+      <p className="-mt-3 text-center text-xs text-night-400">Tap a player for their stats</p>
+
+      <Awards players={players} />
 
       {room.history.length > 0 && (
         <section className="card p-4">
@@ -268,6 +277,86 @@ export function ScoreboardScreen() {
         )}
       </ActionBar>
       <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <PlayerStatsSheet player={players.find((p) => p.id === statsFor) ?? null} onClose={() => setStatsFor(null)} />
     </div>
+  );
+}
+
+// ───────────────────────────── AWARDS & STATS ─────────────────────────────
+
+const AWARDS: { key: keyof PlayerStats; title: string; what: (n: number) => string }[] = [
+  { key: 'correctVotes', title: 'Top Detective', what: (n) => `${n} vote${n === 1 ? '' : 's'} for a Grinch` },
+  { key: 'grinchWins', title: 'Master of Disguise', what: (n) => `${n} win${n === 1 ? '' : 's'} as a Grinch` },
+  { key: 'elfWins', title: 'Most Loyal Elf', what: (n) => `${n} win${n === 1 ? '' : 's'} as an Elf` },
+  { key: 'correctGuesses', title: 'Word Thief', what: (n) => `${n} correct final guess${n === 1 ? '' : 'es'}` },
+  { key: 'timesVotedOut', title: 'Most Suspicious', what: (n) => `voted out ${n} time${n === 1 ? '' : 's'}` },
+];
+
+/** Fun superlatives across the room's matches (ties share the award). */
+function Awards({ players }: { players: PublicPlayer[] }) {
+  const awards = AWARDS.map((a) => {
+    const best = Math.max(0, ...players.map((p) => p.stats[a.key]));
+    return { ...a, best, winners: best > 0 ? players.filter((p) => p.stats[a.key] === best) : [] };
+  }).filter((a) => a.winners.length > 0);
+  if (awards.length === 0) return null;
+  return (
+    <section className="card p-4">
+      <SectionTitle>Awards</SectionTitle>
+      <ul className="grid gap-2 min-[420px]:grid-cols-2">
+        {awards.map((a) => (
+          <li key={a.key} className="flex items-center gap-3 rounded-2xl bg-white/[0.035] px-3 py-2.5">
+            <AvatarImg id={a.winners[0].avatar} size={36} />
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wider text-gold">{a.title}</p>
+              <p className="truncate text-sm font-bold">
+                {a.winners.map((w) => w.name).join(' & ')}
+              </p>
+              <p className="text-xs text-night-300">{a.what(a.best)}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function PlayerStatsSheet({ player, onClose }: { player: PublicPlayer | null; onClose: () => void }) {
+  const s = player?.stats;
+  const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 100)}%` : '—');
+  const elfMatches = s ? s.matchesPlayed - s.grinchMatches : 0;
+  const rows: [string, string | number][] = s
+    ? [
+        ['Points', player!.score],
+        ['Matches played', s.matchesPlayed],
+        ['Win rate', pct(s.wins, s.matchesPlayed)],
+        ['Wins as an Elf', `${s.elfWins} / ${elfMatches}`],
+        ['Wins as a Grinch', `${s.grinchWins} / ${s.grinchMatches}`],
+        ['Votes for a Grinch', s.correctVotes],
+        ['Times voted out', s.timesVotedOut],
+        ['Correct final guesses', s.correctGuesses],
+      ]
+    : [];
+  return (
+    <Sheet open={!!player} onClose={onClose} title={player ? `${player.name}'s stats` : 'Stats'}>
+      {player && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <Avatar emoji={player.avatar} size={72} ring="gold" />
+            <div>
+              <p className="heading text-2xl">{player.name}</p>
+              <p className="text-sm text-night-300">Stats for this room. They reset when the host resets scores.</p>
+            </div>
+          </div>
+          <dl className="grid grid-cols-2 gap-2">
+            {rows.map(([label, value]) => (
+              <div key={label} className="rounded-2xl bg-white/[0.04] px-3 py-2.5">
+                <dt className="text-xs text-night-400">{label}</dt>
+                <dd className="font-display text-xl text-snow">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
+    </Sheet>
   );
 }

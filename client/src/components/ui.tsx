@@ -42,7 +42,7 @@ export function Button({
   return (
     <motion.button
       whileTap={disabled || loading ? undefined : { scale: 0.96 }}
-      className={`inline-flex select-none items-center justify-center font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none ${sizes[size]} ${variants[variant]} ${block ? 'w-full' : ''} ${className}`}
+      className={`inline-flex select-none items-center justify-center font-bold transition-colors [&>svg]:shrink-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none ${sizes[size]} ${variants[variant]} ${block ? 'w-full' : ''} ${className}`}
       disabled={disabled || loading}
       onClick={(e) => {
         play('click');

@@ -1,16 +1,13 @@
 {
   "id": "animals",
   "words": [
-    "Reindeer", "Penguin", "Polar Bear", "Arctic Fox", "Snowy Owl",
-    "Robin", "Partridge", "Turtle Dove", "French Hen", "Swan",
-    "Goose", "Donkey", "Camel", "Sheep", "Ox",
-    "Husky", "Moose", "Caribou", "Seal", "Walrus",
-    "Orca", "Narwhal", "Snow Leopard", "Mountain Goat", "Snowshoe Hare",
-    "Squirrel", "Chipmunk", "Beaver", "Cardinal", "Chickadee",
-    "Hedgehog", "Badger", "Mouse", "Kitten", "Puppy",
-    "Horse", "Pony", "Turkey", "Pig", "Wolf",
-    "Brown Bear", "Red Fox", "Deer", "Lynx", "Puffin",
-    "Ermine", "Yak", "Albatross", "Emperor Penguin", "Beluga Whale",
-    "Raccoon", "Owl", "Lamb", "Snow Monkey", "Arctic Hare"
+    ["Reindeer", "Antlers"], ["Penguin", "Tuxedo"], ["Polar Bear", "Arctic"], ["Owl", "Night"],
+    ["Fox", "Sly"], ["Wolf", "Howl"], ["Dog", "Bark"], ["Cat", "Purr"],
+    ["Horse", "Ride"], ["Cow", "Moo"], ["Pig", "Mud"], ["Sheep", "Wool"],
+    ["Bunny", "Hop"], ["Squirrel", "Nuts"], ["Bear", "Cave"], ["Deer", "Forest"],
+    ["Seal", "Flippers"], ["Whale", "Ocean"], ["Fish", "Bowl"], ["Duck", "Pond"],
+    ["Chicken", "Eggs"], ["Mouse", "Squeak"], ["Elephant", "Trunk"], ["Lion", "Roar"],
+    ["Monkey", "Climb"], ["Giraffe", "Tall"], ["Turtle", "Shell"], ["Frog", "Jump"],
+    ["Snake", "Hiss"], ["Shark", "Teeth"]
   ]
 }

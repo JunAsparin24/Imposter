@@ -2,8 +2,8 @@ import { z } from 'zod';
 import {
   AVATARS,
   CATEGORY_IDS,
+  CUSTOM_PACK,
   DISCUSSION_MAX_SECONDS,
-  GUESS_MAX_LENGTH,
   MAX_PLAYERS,
   ROOM_CODE_LENGTH,
   maxGrinchCount,
@@ -25,7 +25,9 @@ const phaseSeq = z.number().int().min(0);
 const empty = z.object({}).strip();
 
 export const schemas = {
-  create: z.object({ name, avatar }),
+  watch: z.object({ code, displayToken: z.string().min(16).max(128) }),
+  start: z.object({ practice: z.boolean().optional() }),
+  judge: z.object({ correct: z.boolean(), phaseSeq }),
   check: z.object({ code }),
   join: z.object({ code, name, avatar }),
   reconnect: z.object({ code, token: z.string().min(16).max(128) }),
@@ -40,7 +42,11 @@ export const schemas = {
     picks: z.array(id).max(MAX_PLAYERS),
     skip: z.boolean(),
   }),
-  guess: z.object({ guess: z.string().max(GUESS_MAX_LENGTH * 2) }),
+  customPack: z.object({
+    name: z.string().max(60),
+    lines: z.array(z.string().max(200)).max(CUSTOM_PACK.MAX_WORDS * 2),
+  }),
+  locked: z.object({ locked: z.boolean() }),
   settings: z.object({
     settings: z
       .object({
@@ -56,7 +62,7 @@ export const schemas = {
         votingSeconds: z.number().int().min(0).max(300),
         finalGuessEnabled: z.boolean(),
         soundEnabled: z.boolean(),
-        categoryHintForGrinch: z.boolean(),
+        grinchHint: z.boolean(),
         allowSkipVote: z.boolean(),
         autoAdvance: z.boolean(),
         allowRepeatWords: z.boolean(),

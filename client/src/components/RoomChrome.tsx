@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { BookOpen, Crown, KeyRound, LogOut, Menu, Settings2, WifiOff } from 'lucide-react';
+import { BookOpen, Crown, KeyRound, LogOut, Menu, Settings2, UserX, Users, WifiOff } from 'lucide-react';
 import { useState } from 'react';
 import type { PublicPlayer } from '@imposter/shared';
 import { useGame, useRoom } from '../state/GameProvider';
@@ -12,11 +12,12 @@ import { Button, ConfirmButton, Sheet, Toggle } from './ui';
 const LIVE_PHASES = ['ROLE_REVEAL', 'CLUE', 'DISCUSSION', 'VOTING', 'VOTE_RESULTS', 'FINAL_GUESS'];
 
 export function RoomHeader() {
-  const { room, priv, isHost, status, prefs, setPrefs, leaveRoom, send, toast } = useRoom();
+  const { room, priv, isHost, isDisplay, status, prefs, setPrefs, leaveRoom, closeDisplay, send, toast } = useRoom();
   const [menu, setMenu] = useState(false);
   const [roleOpen, setRoleOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [playersOpen, setPlayersOpen] = useState(false);
   const live = LIVE_PHASES.includes(room.phase);
   const m = room.match;
 
@@ -24,13 +25,13 @@ export function RoomHeader() {
     room.phase === 'LOBBY'
       ? 'Lobby'
       : m
-        ? m.round > 0 && live ? `Round ${m.round}` : `Match ${m.number}`
+        ? m.practice ? 'Practice' : m.round > 0 && live ? `Round ${m.round}` : `Match ${m.number}`
         : '';
 
   return (
     <>
       <header className="pt-safe sticky top-0 z-30 border-b border-white/[0.05] bg-night-950/85 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-3xl items-center gap-2 px-4">
+        <div className="mx-auto flex h-14 max-w-5xl items-center gap-2 px-4">
           <button
             onClick={() => {
               void navigator.clipboard?.writeText(room.code).then(() => toast('Room code copied!', 'success'));
@@ -95,6 +96,19 @@ export function RoomHeader() {
           >
             How to play
           </Button>
+          {isHost && (
+            <Button
+              block
+              variant="outline"
+              icon={<Users size={18} />}
+              onClick={() => {
+                setMenu(false);
+                setPlayersOpen(true);
+              }}
+            >
+              Manage players
+            </Button>
+          )}
           {isHost && m && !m.results && (
             <ConfirmButton
               block
@@ -115,11 +129,11 @@ export function RoomHeader() {
             className="!text-grinch-light"
             onConfirm={() => {
               setMenu(false);
-              void leaveRoom();
+              void (isDisplay ? closeDisplay() : leaveRoom());
             }}
-            confirmLabel="Tap again to leave"
+            confirmLabel={isDisplay ? "Tap again to close (the game keeps going)" : "Tap again to leave"}
           >
-            Leave room
+            {isDisplay ? "Close room screen" : "Leave room"}
           </ConfirmButton>
         </div>
       </Sheet>
@@ -127,6 +141,56 @@ export function RoomHeader() {
       <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <Sheet open={rulesOpen} onClose={() => setRulesOpen(false)} title="How to play">
         <HowToPlay />
+      </Sheet>
+      <Sheet open={playersOpen && isHost} onClose={() => setPlayersOpen(false)} title="Manage players">
+        <p className="mb-3 text-sm text-night-300">
+          Kicking someone mid-match takes them out of the game and reveals their role.
+        </p>
+        <ul className="space-y-2">
+          {room.players
+            .filter((p) => p.status !== 'LEFT')
+            .map((p) => (
+              <li key={p.id}>
+                <PlayerRow
+                  player={p}
+                  isMe={p.isHost}
+                  right={
+                    !p.isHost && (
+                      <div className="flex items-center gap-1">
+                        {p.connected && (
+                          <ConfirmButton
+                            size="sm"
+                            variant="ghost"
+                            className="!h-9 !px-2"
+                            title="Make host"
+                            aria-label={`Make ${p.name} the host`}
+                            confirmLabel="Host?"
+                            onConfirm={() => {
+                              setPlayersOpen(false);
+                              void send('room:transferHost', { playerId: p.id });
+                            }}
+                          >
+                            <Crown size={16} />
+                          </ConfirmButton>
+                        )}
+                        <ConfirmButton
+                          size="sm"
+                          variant="ghost"
+                          className="!h-9 !px-2"
+                          title="Kick"
+                          aria-label={`Kick ${p.name}`}
+                          confirmLabel="Kick?"
+                          onConfirm={() => void send('room:kick', { playerId: p.id })}
+                        >
+                          <UserX size={16} />
+                        </ConfirmButton>
+                      </div>
+                    )
+                  }
+                />
+              </li>
+            ))}
+        </ul>
       </Sheet>
     </>
   );

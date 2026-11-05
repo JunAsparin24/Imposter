@@ -1,15 +1,12 @@
 {
   "id": "activities",
   "words": [
-    "Sledding", "Ice Skating", "Skiing", "Snowboarding", "Snowball Fight",
-    "Building a Snowman", "Snow Angel", "Ice Hockey", "Curling", "Caroling",
-    "Baking Cookies", "Gift Wrapping", "Decorating the Tree", "Tobogganing", "Bobsled",
-    "Figure Skating", "Snowshoeing", "Dog Sledding", "Ice Fishing", "Cross-Country Skiing",
-    "Ugly Sweater Party", "Secret Santa", "White Elephant", "Writing a Letter to Santa", "Opening the Advent Calendar",
-    "Hanging Stockings", "Watching Christmas Movies", "Visiting Santa", "Making Hot Cocoa", "Building a Snow Fort",
-    "Ice Sculpting", "Biathlon", "Ski Jumping", "Snowmobiling", "Speed Skating",
-    "Polar Plunge", "Christmas Shopping", "Putting Up Lights", "Nativity Play", "Midnight Mass",
-    "Christmas Parade", "Gingerbread Decorating", "Sending Christmas Cards", "Pulling Christmas Crackers", "Cutting Down a Tree",
-    "Shoveling Snow", "Horse-Drawn Sleigh Ride", "Charades", "Board Game Night", "Opening Presents"
+    ["Sledding", "Hill"], ["Ice Skating", "Blades"], ["Skiing", "Poles"], ["Snowball Fight", "Throw"],
+    ["Building a Snowman", "Carrot"], ["Snow Angel", "Lie down"], ["Hockey", "Puck"], ["Baking", "Kitchen"],
+    ["Wrapping Presents", "Tape"], ["Decorating the Tree", "Lights"], ["Caroling", "Singing"], ["Watching Movies", "Couch"],
+    ["Opening Presents", "Morning"], ["Snowboarding", "Tricks"], ["Shoveling Snow", "Driveway"], ["Sleepover", "Pajamas"],
+    ["Hide and Seek", "Counting"], ["Dancing", "Music"], ["Karaoke", "Microphone"], ["Taking Photos", "Smile"],
+    ["Pillow Fight", "Feathers"], ["Swimming", "Water"], ["Fishing", "Hook"], ["Bowling", "Pins"],
+    ["Painting", "Brush"], ["Reading", "Pages"], ["Shopping", "Bags"], ["Camping", "Marshmallows"]
   ]
 }

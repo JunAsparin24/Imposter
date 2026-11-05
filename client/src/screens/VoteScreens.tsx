@@ -2,9 +2,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Lock, SkipForward } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { TIMING, type PublicPlayer, type VoteResult } from '@imposter/shared';
-import { Avatar, TimerRing } from '../components/decor';
+import { Avatar, AvatarImg, TimerRing } from '../components/decor';
 import { ActionBar, Button, ConfirmButton } from '../components/ui';
 import { play, vibrate } from '../lib/sound';
+import { useFinalSecondsTick } from '../lib/hooks';
 import { formatSeconds, useCountdown } from '../lib/useCountdown';
 import { useRoom } from '../state/GameProvider';
 import { EliminatedNotice, PhaseTitle } from './RoundScreens';
@@ -29,6 +30,7 @@ function VotingBallot() {
   const [skip, setSkip] = useState(false);
   const [busy, setBusy] = useState(false);
   const left = useCountdown(room.deadline, clockOffset);
+  useFinalSecondsTick(left);
   const candidates = v.candidateIds.map((id) => playerById(id)!).filter(Boolean);
   const progress = v.eligibleIds.length ? v.submittedIds.length / v.eligibleIds.length : 0;
 
@@ -64,7 +66,7 @@ function VotingBallot() {
         tone="grinch"
         sub={
           v.isRevote
-            ? 'It was a tie. Vote again — tied players only.'
+            ? 'It was a tie. Vote again, tied players only.'
             : need > 1
               ? `Pick ${need} players you think are Grinches.`
               : 'Who do you think is a Grinch?'
@@ -169,7 +171,7 @@ function VotingBallot() {
             block
             variant="ghost"
             onConfirm={() => void send('game:closeVoting', { phaseSeq: room.phaseSeq })}
-            confirmLabel="Tap again — missing votes won't count"
+            confirmLabel="Tap again (missing votes won't count)"
           >
             End voting now
           </ConfirmButton>
@@ -246,7 +248,7 @@ export function VoteResultsScreen() {
                 const max = Math.max(...r.tally.map((x) => x.votes), 1);
                 return (
                   <li key={t.targetId} className="flex items-center gap-3 text-sm">
-                    <span className="w-24 shrink-0 truncate font-semibold">{t.targetId === 'SKIP' ? '⏭️ Skip' : `${p?.avatar} ${p?.name}`}</span>
+                    <span className="w-24 shrink-0 truncate font-semibold">{t.targetId === 'SKIP' ? '⏭️ Skip' : <><AvatarImg id={p?.avatar ?? ''} size={18} /> {p?.name}</>}</span>
                     <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
                       <motion.span
                         className="block h-full rounded-full bg-gold"
@@ -295,27 +297,35 @@ function ResultBody({
           const p = playerById(id);
           const grinch = r.roles[id] === 'GRINCH';
           return (
-            <div
+            <motion.div
               key={id}
+              // A Grinch reveal gets a little "caught!" shake; an Elf reveal a gentle bounce.
+              animate={grinch ? { x: [0, -10, 10, -7, 7, -3, 0] } : { y: [0, -8, 0] }}
+              transition={{ duration: grinch ? 0.55 : 0.45, delay: 0.25 }}
               className={`flex flex-col items-center gap-2 rounded-[28px] border-2 px-4 py-6 text-center ${
                 grinch ? 'border-grinch/60 bg-grinch/10 shadow-glow-red' : 'border-elf/60 bg-elf/10 shadow-glow-green'
               }`}
             >
               <Avatar emoji={p?.avatar ?? '❓'} size={80} ring={grinch ? 'grinch' : 'elf'} />
               <h2 className="heading break-all text-[clamp(1.8rem,9vw,2.6rem)]">{p?.name ?? 'Someone'}</h2>
-              <p className={`heading text-[clamp(1.3rem,6.5vw,1.9rem)] ${grinch ? 'text-grinch' : 'text-elf'}`}>
-                {grinch ? 'was a Grinch! 😈' : 'was an Elf! 🧝'}
-              </p>
-            </div>
+              <motion.p
+                initial={{ opacity: 0, scale: 0.6 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.15, type: 'spring', damping: 10 }}
+                className={`heading text-[clamp(1.3rem,6.5vw,1.9rem)] ${grinch ? 'text-grinch' : 'text-elf'}`}
+              >
+                {grinch ? 'was a Grinch!' : 'was an Elf.'}
+              </motion.p>
+            </motion.div>
           );
         })}
-        {pendingFinalGuess && <p className="text-center text-sm font-semibold text-gold">…but they get one last chance to guess the word!</p>}
+        {pendingFinalGuess && <p className="text-center text-sm font-semibold text-gold">…but they get one last chance to say the secret word!</p>}
       </div>
     );
   }
   const names = r.playerIds.map((id) => playerById(id)?.name ?? '?').join(' vs ');
   const copy: Record<string, { title: string; sub: string }> = {
-    TIE: { title: "It's a tie!", sub: `${names} — time for a revote.` },
+    TIE: { title: "It's a tie!", sub: `${names}. Time for a revote.` },
     NO_DECISION: { title: 'Tied again!', sub: 'Nobody is eliminated. On to the next round of clues.' },
     SKIPPED: { title: 'Skipped!', sub: 'The group chose to skip. Nobody is eliminated.' },
     NO_VOTES: { title: 'No votes', sub: 'Nobody voted, so nobody is eliminated.' },
@@ -336,57 +346,59 @@ export function FinalGuessScreen() {
   const m = room.match!;
   const fg = m.finalGuess!;
   const left = useCountdown(room.deadline, clockOffset);
-  const [guess, setGuess] = useState('');
+  useFinalSecondsTick(left, 10);
   const [busy, setBusy] = useState(false);
   const guessers = fg.guesserIds.map((id) => playerById(id)?.name ?? '?').join(' & ');
+  const plural = fg.guesserIds.length > 1;
+
+  const judge = async (correct: boolean) => {
+    setBusy(true);
+    await send('game:judgeGuess', { correct, phaseSeq: room.phaseSeq });
+    setBusy(false);
+  };
 
   return (
     <div className="flex flex-1 flex-col gap-5">
       <div className="flex justify-center pt-2">
         {left !== null && <TimerRing msLeft={left} totalMs={TIMING.FINAL_GUESS_MS} size={104} label={formatSeconds(left)} />}
       </div>
-      {priv.canGuess ? (
-        <form
-          className="flex flex-1 flex-col gap-5"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            if (!guess.trim()) return;
-            setBusy(true);
-            await send('game:submitGuess', { guess });
-            setBusy(false);
-          }}
-        >
+      {priv.isGuessing ? (
+        // The caught Grinch: say it out loud, no typing.
+        <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
           <PhaseTitle kicker="You've been caught" title="One last chance" tone="grinch" sub="What was the secret word?" />
-          <input
-            value={guess}
-            onChange={(e) => setGuess(e.target.value.slice(0, 60))}
-            autoFocus
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
-            placeholder="Type your guess…"
-            className="h-16 w-full rounded-2xl border-2 border-grinch/50 bg-night-800 px-4 text-center text-2xl font-bold placeholder:text-night-500 focus:border-grinch focus:outline-none"
-            aria-label="Your guess for the secret word"
-          />
-          <p className="text-center text-xs text-night-400">One guess only. Capitalisation doesn't matter.</p>
+          <p className="heading max-w-xs text-2xl text-snow">Say your guess out loud!</p>
+          <p className="max-w-xs text-sm text-night-300">
+            {plural ? 'Agree on ONE guess together. ' : ''}One try only. An Elf will tap whether you got it right.
+          </p>
+          {priv.hint && (
+            <p className="rounded-2xl bg-gold/10 px-4 py-2 text-sm font-semibold text-gold">Your hint was: {priv.hint}</p>
+          )}
+        </div>
+      ) : priv.canJudge ? (
+        // Elves know the word, so they confirm the spoken guess.
+        <div className="flex flex-1 flex-col gap-5">
+          <PhaseTitle kicker="Final guess" title="Listen up!" tone="grinch" sub={`${guessers} ${plural ? 'are' : 'is'} saying one final guess out loud.`} />
+          <div className="card p-5 text-center">
+            <p className="label">The secret word is</p>
+            <p className="heading mt-1 break-words text-3xl text-gold">{priv.word}</p>
+          </div>
+          <p className="text-center text-sm text-night-300">Did they say it? The first Elf to answer decides.</p>
           <ActionBar>
-            <Button type="submit" block size="lg" variant="grinch" loading={busy} disabled={!guess.trim()}>
-              Submit final guess
-            </Button>
+            <div className="grid grid-cols-2 gap-2.5">
+              <Button size="lg" variant="elf" loading={busy} onClick={() => void judge(false)}>
+                Wrong
+              </Button>
+              <ConfirmButton size="lg" variant="grinch" disabled={busy} confirmLabel="Sure? Grinches win" onConfirm={() => void judge(true)}>
+                They got it
+              </ConfirmButton>
+            </div>
           </ActionBar>
-        </form>
+        </div>
       ) : (
+        // Other Grinches, spectators and the room screen.
         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-          <PhaseTitle
-            kicker="Final guess"
-            title={priv.guessSubmitted ? 'Guess submitted' : 'One last chance…'}
-            tone="grinch"
-            sub={priv.guessSubmitted ? 'Fingers crossed… 🤞' : `${guessers} is trying to guess the secret word!`}
-          />
-          <motion.span className="text-6xl" animate={{ rotate: [0, -8, 8, 0] }} transition={{ repeat: Infinity, duration: 1.4 }} aria-hidden>
-            😈
-          </motion.span>
-          <p className="text-sm text-night-300">If they get it right, the Grinches steal Christmas.</p>
+          <PhaseTitle kicker="Final guess" title="One last chance…" tone="grinch" sub={`${guessers}, say your guess for the secret word out loud!`} />
+          <p className="text-sm text-night-300">If they get it right, the Grinches steal Christmas. The Elves will confirm on their phones.</p>
         </div>
       )}
     </div>
