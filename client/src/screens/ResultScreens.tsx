@@ -146,6 +146,8 @@ function VoteSummary({ res, nameOf }: { res: MatchResults; nameOf: (id: string) 
           ? 'Skipped'
           : kind === 'NO_DECISION'
             ? 'Tied again, nobody out'
+            : kind === 'PROTECTED'
+              ? `${ids.map(nameOf).join(', ')} saved by the Bodyguard`
             : 'No votes';
   return (
     <details className="card group p-4">

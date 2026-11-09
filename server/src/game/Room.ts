@@ -140,6 +140,8 @@ interface Match {
   powersUsed: Set<string>;
   /** Detective's private result. */
   detectiveResult: { targetId: string; isImposter: boolean } | null;
+  /** Bodyguard: who is protected, and for which round. */
+  protection: { targetId: string; round: number } | null;
   /** Latest public sabotage news. */
   sabotage: SabotageNews | null;
   /** Saboteur cut the discussion: voting starts at this time no matter what. */
@@ -497,7 +499,7 @@ export class Room {
     const powers = new Map<string, Power>();
     if (!practice && ids.length >= 5) {
       const plainInnocents = () => ids.filter((id) => roles.get(id) === 'ELF' && !powers.has(id));
-      for (const power of ['DETECTIVE', 'MAYOR'] as const) {
+      for (const power of ['DETECTIVE', 'MAYOR', 'BODYGUARD'] as const) {
         const pool = plainInnocents();
         // Keep at least one Innocent without a power.
         if (settings.specialRoles.includes(power) && pool.length >= 2) powers.set(pool[this.deps.rng.int(pool.length)], power);
@@ -538,6 +540,7 @@ export class Room {
       powers,
       powersUsed: new Set(),
       detectiveResult: null,
+      protection: null,
       sabotage: null,
       forcedVoteAt: null,
       lastGuess: null,
@@ -638,6 +641,7 @@ export class Room {
     if (!m || m.results || !this.isAlive(playerId) || m.powersUsed.has(playerId)) return [];
     const power = m.powers.get(playerId);
     if (power === 'DETECTIVE' && (this.phase === 'CLUE' || this.phase === 'DISCUSSION')) return ['INVESTIGATE'];
+    if (power === 'BODYGUARD' && (this.phase === 'CLUE' || this.phase === 'DISCUSSION' || this.phase === 'VOTING')) return ['PROTECT'];
     if (power === 'SABOTEUR') {
       const speaker = this.currentSpeakerId();
       if (this.phase === 'CLUE' && speaker && speaker !== playerId) return ['SKIP_TURN'];
@@ -656,6 +660,9 @@ export class Room {
     if (action === 'INVESTIGATE') {
       if (!targetId || targetId === actorId || !this.isAlive(targetId)) throw new GameError('INVALID_INPUT', 'Pick another player who is still in the game.');
       m.detectiveResult = { targetId, isImposter: m.roles.get(targetId) === 'GRINCH' };
+    } else if (action === 'PROTECT') {
+      if (!targetId || targetId === actorId || !this.isAlive(targetId)) throw new GameError('INVALID_INPUT', 'Pick another player who is still in the game.');
+      m.protection = { targetId, round: m.round };
     } else if (action === 'SKIP_TURN') {
       const skipped = this.currentSpeakerId();
       m.sabotage = { kind: 'SKIP_TURN', round: m.round, targetId: skipped };
@@ -875,7 +882,11 @@ export class Room {
         const decided = [...v.lockedInIds, ...above, ...atThreshold];
         const roles: Record<string, Role> = {};
         for (const id of decided) roles[id] = m.roles.get(id)!;
-        if (m.settings.votingSystem === 'ELIMINATION') {
+        const guarded = m.protection && m.protection.round === m.round ? m.protection.targetId : null;
+        if (guarded && decided.includes(guarded)) {
+          // The Bodyguard's save: nobody leaves this time.
+          result = { ...base, kind: 'PROTECTED', playerIds: [guarded] };
+        } else if (m.settings.votingSystem === 'ELIMINATION') {
           m.eliminatedIds.push(decided[0]);
           result = { ...base, roles, kind: 'ELIMINATED', playerIds: [decided[0]] };
         } else {
@@ -1369,6 +1380,7 @@ export class Room {
       powerUsed: false,
       powerActions: [],
       detectiveResult: null,
+      protection: null,
       // The host wrote these words, so sending them back to the host leaks nothing new.
       customPackLines:
         playerId === this.hostId && this.customPack
@@ -1388,6 +1400,7 @@ export class Room {
       out.powerUsed = m.powersUsed.has(playerId);
       out.powerActions = this.availablePowerActions(playerId);
       if (power === 'DETECTIVE') out.detectiveResult = m.detectiveResult;
+      if (power === 'BODYGUARD') out.protection = m.protection;
     }
     if (role === 'ELF' || role === 'JESTER') {
       out.word = m.word.word;

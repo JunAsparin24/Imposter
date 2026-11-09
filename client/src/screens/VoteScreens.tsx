@@ -354,6 +354,7 @@ function NoOneOut({ result: r, playerById }: { result: VoteResult; playerById: (
     TIE: { title: "It's a tie!", sub: `${names}. Time for a revote.` },
     NO_DECISION: { title: 'Tied again!', sub: 'Nobody is out. On to the next round of clues.' },
     SKIPPED: { title: 'Skipped!', sub: 'The group chose to skip. Nobody is out.' },
+    PROTECTED: { title: 'Protected!', sub: `${names} got the votes, but the Bodyguard was watching. Nobody is out.` },
     NO_VOTES: { title: 'No votes', sub: 'Nobody voted, so nobody is out.' },
   };
   const c = copy[r.kind];

@@ -164,6 +164,13 @@ export const SPECIAL_ROLES: { id: import('./types').SpecialRole; name: string; d
       "An Innocent whose vote secretly counts twice. Votes are private, so the Mayor can never prove who they are (and an Imposter can claim to be them).",
     minPlayers: 5,
   },
+  {
+    id: 'BODYGUARD',
+    name: 'Bodyguard',
+    description:
+      'An Innocent who, once per match, secretly protects one player for that round. If the vote would remove them, nobody leaves. Everyone sees the save, but not who made it.',
+    minPlayers: 5,
+  },
 ];
 
 export const CATEGORY_IDS = CATEGORIES.map((c) => c.id) as CategoryId[];

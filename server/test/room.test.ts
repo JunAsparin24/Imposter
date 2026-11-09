@@ -776,6 +776,32 @@ describe('powers: detective, saboteur, mayor', () => {
     expect(t.room.privateState(others[2]).power).toBeNull();
   });
 
+  it('the bodyguard saves the voted player once per match, without revealing themselves', () => {
+    const t = makeRoom(6, { specialRoles: ['BODYGUARD'], grinchCount: 1, votingSystem: 'ELIMINATION', allowSkipVote: true, finalGuessEnabled: false });
+    startToClues(t);
+    const bg = holder(t, 'BODYGUARD')!;
+    expect(t.room.match!.roles.get(bg)).toBe('ELF');
+    const target = elves(t).find((id) => id !== bg)!;
+    expectError(() => t.room.usePower(bg, 'PROTECT', bg, t.room.phaseSeq), 'INVALID_INPUT');
+    t.room.usePower(bg, 'PROTECT', target, t.room.phaseSeq);
+    expect(t.room.privateState(bg).protection).toEqual({ targetId: target, round: 1 });
+    expect(t.room.privateState(target).protection).toBeNull();
+    expect(JSON.stringify(t.room.publicState())).not.toContain('"protection"');
+    toVoting(t);
+    everyoneVotes(t, target);
+    const r = t.room.publicState().match!.lastResult!;
+    expect(r.kind).toBe('PROTECTED');
+    expect(r.playerIds).toEqual([target]);
+    expect(t.room.aliveIds()).toContain(target);
+    continueResults(t);
+    // Round 2: the protection has worn off and can't be used again.
+    expect(t.room.publicState().match!.round).toBe(2);
+    expect(t.room.privateState(bg).powerActions).toEqual([]);
+    toVoting(t);
+    everyoneVotes(t, target);
+    expect(t.room.publicState().match!.lastResult!.kind).toBe('ELIMINATED');
+  });
+
   it('powers are not dealt below 5 players', () => {
     const t = makeRoom(4, { specialRoles: ['DETECTIVE', 'SABOTEUR', 'MAYOR'] });
     startToClues(t);

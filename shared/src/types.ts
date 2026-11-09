@@ -29,10 +29,10 @@ export type VotingSystem = 'ELIMINATION' | 'SINGLE';
 export type Role = 'ELF' | 'GRINCH' | 'JESTER';
 
 /** Optional extra roles the host can switch on. */
-export type SpecialRole = 'JESTER' | 'DETECTIVE' | 'SABOTEUR' | 'MAYOR';
+export type SpecialRole = 'JESTER' | 'DETECTIVE' | 'SABOTEUR' | 'MAYOR' | 'BODYGUARD';
 /** Powers sit on top of a normal team: Detective/Mayor are Innocents, Saboteur is an Imposter. */
-export type Power = 'DETECTIVE' | 'SABOTEUR' | 'MAYOR';
-export type PowerAction = 'INVESTIGATE' | 'SKIP_TURN' | 'CUT_DISCUSSION';
+export type Power = 'DETECTIVE' | 'SABOTEUR' | 'MAYOR' | 'BODYGUARD';
+export type PowerAction = 'INVESTIGATE' | 'SKIP_TURN' | 'CUT_DISCUSSION' | 'PROTECT';
 
 /** Public news of a sabotage (never says who did it). */
 export interface SabotageNews {
@@ -128,6 +128,7 @@ export type VoteResultKind =
   | 'TIE' // tie -> a revote among the tied players follows
   | 'SKIPPED' // skip won outright
   | 'NO_DECISION' // the revote tied again
+  | 'PROTECTED' // the Bodyguard saved the player who would have been voted out
   | 'NO_VOTES'; // nobody voted
 
 export interface VoteResult {
@@ -313,6 +314,8 @@ export interface PrivatePlayerState {
   powerActions: PowerAction[];
   /** Detective only: the result of my one check. */
   detectiveResult: { targetId: string; isImposter: boolean } | null;
+  /** Bodyguard only: who I protected, and in which round. */
+  protection: { targetId: string; round: number } | null;
   /** Host only: the room's custom word pack, one entry per line ("Word | hint"). */
   customPackLines: string[] | null;
 }

@@ -1,4 +1,4 @@
-import { Eye, Gavel, Scissors, SkipForward } from 'lucide-react';
+import { Eye, Gavel, Scissors, Shield, SkipForward } from 'lucide-react';
 import { useState } from 'react';
 import { SPECIAL_ROLES, TIMING } from '@imposter/shared';
 import { useRoom } from '../state/GameProvider';
@@ -9,6 +9,7 @@ import { Button, ConfirmButton, Sheet } from './ui';
 export const POWER_INFO = {
   DETECTIVE: { title: 'Detective', rule: 'Once per match, during clues or discussion, secretly check if one player is an Imposter.' },
   SABOTEUR: { title: 'Saboteur', rule: "Once per match, skip someone's speaking turn or cut the discussion to 10 seconds." },
+  BODYGUARD: { title: 'Bodyguard', rule: 'Once per match, secretly protect one player for this round. If the vote would remove them, nobody leaves.' },
   MAYOR: { title: 'Mayor', rule: 'Your vote secretly counts twice. Nobody can tell, so nobody can prove who the Mayor is.' },
 } as const;
 
@@ -27,14 +28,15 @@ export function PowerSheet({ open, onClose }: { open: boolean; onClose: () => vo
   const speaker = playerById(m.currentSpeakerId);
   const can = (a: string) => priv.powerActions.includes(a as never);
 
-  const use = async (action: 'INVESTIGATE' | 'SKIP_TURN' | 'CUT_DISCUSSION', targetId?: string) => {
+  const use = async (action: 'INVESTIGATE' | 'SKIP_TURN' | 'CUT_DISCUSSION' | 'PROTECT', targetId?: string) => {
     setBusy(true);
     const res = await send('game:usePower', { action, targetId, phaseSeq: room.phaseSeq });
     setBusy(false);
-    if (res.ok && action !== 'INVESTIGATE') onClose();
+    if (res.ok && action !== 'INVESTIGATE' && action !== 'PROTECT') onClose();
   };
 
   const checked = priv.detectiveResult ? playerById(priv.detectiveResult.targetId) : null;
+  const guarded = priv.protection ? playerById(priv.protection.targetId) : null;
 
   return (
     <Sheet open={open} onClose={onClose} title={`${info.title} power`}>
@@ -126,6 +128,48 @@ export function PowerSheet({ open, onClose }: { open: boolean; onClose: () => vo
           </>
         )}
 
+        {priv.power === 'BODYGUARD' && (
+          <>
+            {priv.protection && guarded ? (
+              <div className="rounded-2xl border-2 border-elf/60 bg-elf/10 px-4 py-5 text-center">
+                <Avatar emoji={guarded.avatar} size={64} ring="elf" />
+                <p className="heading mt-2 text-2xl">{guarded.name}</p>
+                <p className="heading mt-1 text-xl text-elf">
+                  {priv.protection.round === m.round ? 'is protected this round.' : `was protected in round ${priv.protection.round}.`}
+                </p>
+                <p className="mt-2 text-xs text-night-300">Nobody knows but you. If the vote lands on them, nobody leaves.</p>
+              </div>
+            ) : can('PROTECT') ? (
+              <>
+                <p className="label">Pick one player to protect this round</p>
+                <ul className="grid grid-cols-2 gap-2">
+                  {targets.map((p) => (
+                    <li key={p.id}>
+                      <ConfirmButton
+                        block
+                        variant="outline"
+                        className="!h-auto !justify-start !py-2"
+                        disabled={busy}
+                        confirmLabel={`Protect ${p.name}?`}
+                        onConfirm={() => void use('PROTECT', p.id)}
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <Avatar emoji={p.avatar} size={32} />
+                          <span className="truncate">{p.name}</span>
+                        </span>
+                      </ConfirmButton>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-night-300">
+                {priv.powerUsed ? 'You already used your protection this match.' : 'You can use this during clues, discussion or voting.'}
+              </p>
+            )}
+          </>
+        )}
+
         {priv.power === 'MAYOR' && (
           <p className="rounded-2xl bg-gold/10 px-4 py-3 text-sm text-gold">
             Nothing to tap: your votes already count twice. Claiming to be the Mayor proves nothing, since an Imposter could say it too.
@@ -142,7 +186,10 @@ export function PowerSheet({ open, onClose }: { open: boolean; onClose: () => vo
 
 /** Small icon for each power. */
 export function PowerIcon({ power, size = 16 }: { power: keyof typeof POWER_INFO; size?: number }) {
-  return power === 'DETECTIVE' ? <Eye size={size} /> : power === 'SABOTEUR' ? <Scissors size={size} /> : <Gavel size={size} />;
+  if (power === 'DETECTIVE') return <Eye size={size} />;
+  if (power === 'SABOTEUR') return <Scissors size={size} />;
+  if (power === 'BODYGUARD') return <Shield size={size} />;
+  return <Gavel size={size} />;
 }
 
 export const powerName = (p: string) => SPECIAL_ROLES.find((r) => r.id === p)?.name ?? p;
