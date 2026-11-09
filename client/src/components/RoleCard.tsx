@@ -131,7 +131,30 @@ export function RoleCard({ priv, compact = false }: { priv: PrivatePlayerState; 
   );
 }
 
+/** Who the other Imposters are (Classic and Undercover). */
+function TeamBox({ priv }: { priv: PrivatePlayerState }) {
+  return (
+    <div className="w-full rounded-2xl bg-black/30 px-4 py-3">
+      <p className="label">{priv.teammates.length ? 'Your fellow Imposters' : 'Your team'}</p>
+      {priv.teammates.length ? (
+        <p className="mt-1 break-words text-lg font-bold text-grinch-light">
+          {priv.teammates.map((t, i) => (
+            <span key={t.id} className="inline-flex items-center gap-1">
+              {i > 0 && ', '}
+              <AvatarImg id={t.avatar} size={22} /> {t.name}
+            </span>
+          ))}
+        </p>
+      ) : (
+        <p className="mt-1 text-lg font-bold text-grinch-light">You're the only Imposter.</p>
+      )}
+    </div>
+  );
+}
+
 function RoleContent({ priv }: { priv: PrivatePlayerState }) {
+  const { state } = useGame();
+  const mode = state?.room.match?.mode ?? 'CLASSIC';
   if (priv.role === 'ELF') {
     return (
       <>
@@ -142,7 +165,28 @@ function RoleContent({ priv }: { priv: PrivatePlayerState }) {
           <p className="heading mt-1 break-words text-[clamp(1.6rem,8.5vw,2.4rem)] text-snow">{priv.word}</p>
           {priv.categoryName && <p className="mt-1.5 text-xs font-semibold text-night-300">{priv.categoryName}</p>}
         </div>
-        <p className="max-w-[18rem] text-sm text-snow/80">Give a one-word clue without giving the word away.</p>
+        <p className="max-w-[18rem] text-sm text-snow/80">
+          {mode === 'UNDERCOVER'
+            ? 'The Imposters have a similar but different word. Listen for clues that are slightly off.'
+            : mode === 'CHAOS'
+              ? 'Chaos: there might be several Imposters, or none at all.'
+              : 'Give a one-word clue without giving the word away.'}
+        </p>
+      </>
+    );
+  }
+  if (priv.role === 'GRINCH' && mode === 'UNDERCOVER') {
+    return (
+      <>
+        <p className="label !text-grinch-light">Your secret role</p>
+        <h2 className="heading text-[clamp(1.9rem,9vw,2.6rem)] text-grinch">Imposter</h2>
+        <div className="mt-1 w-full rounded-2xl bg-black/30 px-4 py-3">
+          <p className="label">Your word</p>
+          <p className="heading mt-1 break-words text-[clamp(1.6rem,8.5vw,2.4rem)] text-grinch-light">{priv.word}</p>
+          <p className="mt-1.5 text-xs text-night-300">The Innocents have a different, related word.</p>
+        </div>
+        <TeamBox priv={priv} />
+        <p className="max-w-[18rem] text-sm text-snow/80">Give clues that could fit both words. Figure out their word from their clues.</p>
       </>
     );
   }
@@ -162,17 +206,17 @@ function RoleContent({ priv }: { priv: PrivatePlayerState }) {
             </div>
           )}
         </div>
-        <div className="w-full rounded-2xl bg-black/30 px-4 py-3">
-          <p className="label">{priv.teammates.length ? 'Your fellow Imposters' : 'Your team'}</p>
-          {priv.teammates.length ? (
-            <p className="mt-1 break-words text-lg font-bold text-grinch-light">
-              {priv.teammates.map((t, i) => (<span key={t.id} className="inline-flex items-center gap-1">{i > 0 && ', '}<AvatarImg id={t.avatar} size={22} /> {t.name}</span>))}
-            </p>
-          ) : (
-            <p className="mt-1 text-lg font-bold text-grinch-light">You're the only Imposter.</p>
-          )}
-        </div>
-        <p className="max-w-[18rem] text-sm text-snow/80">Blend in. Listen closely to everyone's clues.</p>
+        {mode === 'CHAOS' ? (
+          <div className="w-full rounded-2xl bg-black/30 px-4 py-3">
+            <p className="label">Your team</p>
+            <p className="mt-1 text-base font-bold text-grinch-light">Chaos: you don't know if there are other Imposters, or who they are.</p>
+          </div>
+        ) : (
+          <TeamBox priv={priv} />
+        )}
+        <p className="max-w-[18rem] text-sm text-snow/80">
+          {priv.hint ? 'Blend in. Listen closely to everyone\'s clues.' : 'No hint this time. Blend in and listen closely.'}
+        </p>
       </>
     );
   }

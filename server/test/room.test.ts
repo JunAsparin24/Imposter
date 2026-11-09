@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AVATARS, SCORING, TIMING } from '@imposter/shared';
-import { GameError } from '../src/game/Room';
+import { GameError, Room } from '../src/game/Room';
 import {
   continueResults,
   elves,
@@ -595,5 +595,94 @@ describe('player limit', () => {
     for (let i = 0; i < 15; i++) t.room.addPlayer(`P${i}`, AVATARS.filter((a) => !t.room.takenAvatars().includes(a))[0]);
     expect(t.room.activePlayers().length).toBe(20);
     expectError(() => t.room.addPlayer('TooMany', 'baker'), 'ROOM_FULL');
+  });
+});
+
+describe('undercover mode', () => {
+  it('imposters get a related but different word; innocents never see it', () => {
+    const t = makeRoom(6, { mode: 'UNDERCOVER', grinchCount: 2, finalGuessEnabled: false });
+    t.room.startMatch(t.host);
+    const m = t.room.match!;
+    expect(m.imposterWord).not.toBeNull();
+    expect(m.imposterWord!.word).not.toBe(m.word.word);
+    const g = grinches(t);
+    for (const id of g) {
+      const me = t.room.privateState(id);
+      expect(me.word).toBe(m.imposterWord!.word);
+      expect(me.hint).toBeNull();
+      expect(me.teammates).toHaveLength(1); // they still know their teammate
+      expect(JSON.stringify(me)).not.toContain(`"${m.word.word}"`);
+    }
+    for (const id of elves(t)) {
+      const me = t.room.privateState(id);
+      expect(me.word).toBe(m.word.word);
+      expect(JSON.stringify(me)).not.toContain(`"${m.imposterWord!.word}"`);
+    }
+    const pub = JSON.stringify(t.room.publicState());
+    expect(pub).not.toContain(`"${m.word.word}"`);
+    expect(pub).not.toContain(`"${m.imposterWord!.word}"`);
+  });
+
+  it('reveals both words at the end', () => {
+    const t = makeRoom(4, { mode: 'UNDERCOVER', finalGuessEnabled: false });
+    startToClues(t);
+    toVoting(t);
+    everyoneVotes(t, grinches(t)[0]);
+    continueResults(t);
+    const res = t.room.publicState().match!.results!;
+    expect(res.winner).toBe('ELVES');
+    expect(res.imposterWord).toBe(t.room.match!.imposterWord!.word);
+  });
+});
+
+describe('chaos mode', () => {
+  /** A Room whose dice always roll `n` (or n capped to the range). */
+  function chaosRoom(players: number, roll: number) {
+    const clock = { t: 1_000_000 };
+    const rng = { int: (max: number) => Math.min(roll, max - 1) };
+    const room = new Room('CHAOS1', { rng, words, clock: () => clock.t });
+    const ids: string[] = [];
+    for (let i = 0; i < players; i++) {
+      const p = room.addPlayer(`P${i}`, AVATARS[i]);
+      room.connect(p.id, `s-${p.id}`);
+      ids.push(p.id);
+    }
+    room.updateSettings(ids[0], { mode: 'CHAOS', votingSystem: 'SINGLE', allowSkipVote: false, discussionSeconds: 0, votingSeconds: 0, autoAdvance: false, finalGuessEnabled: false });
+    return { room, clock, ids, host: ids[0] };
+  }
+
+  it('hides the imposter count and teammates, and forces elimination voting with skip', () => {
+    const t = chaosRoom(8, 50); // 50 → not a zero-imposter match; 1 + min(50, max-1) imposters
+    t.room.startMatch(t.host);
+    const m = t.room.match!;
+    expect(m.grinchIds.length).toBeGreaterThanOrEqual(1);
+    expect(t.room.publicState().match!.grinchCount).toBeNull();
+    expect(m.settings.votingSystem).toBe('ELIMINATION');
+    expect(m.settings.allowSkipVote).toBe(true);
+    for (const id of m.grinchIds) expect(t.room.privateState(id).teammates).toEqual([]);
+  });
+
+  it('zero imposters: skipping wins for the innocents, voting someone out is paranoia', () => {
+    const peaceful = chaosRoom(4, 0); // roll 0 → zero-imposter match, everyone innocent
+    startToClues(peaceful as never);
+    expect(peaceful.room.match!.grinchIds).toEqual([]);
+    toVoting(peaceful as never);
+    voteAll(peaceful as never, () => 'SKIP');
+    continueResults(peaceful as never);
+    let res = peaceful.room.publicState().match!.results!;
+    expect(res.winner).toBe('ELVES');
+    expect(res.reason).toBe('NO_IMPOSTERS');
+    expect(peaceful.room.publicState().players.every((p) => p.score === SCORING.ELF_WIN)).toBe(true);
+
+    const paranoid = chaosRoom(4, 0);
+    startToClues(paranoid as never);
+    toVoting(paranoid as never);
+    const target = paranoid.ids[1];
+    voteAll(paranoid as never, (v) => (v === target ? paranoid.ids[2] : target));
+    continueResults(paranoid as never);
+    res = paranoid.room.publicState().match!.results!;
+    expect(res.winner).toBe('NONE');
+    expect(res.reason).toBe('PARANOIA');
+    expect(paranoid.room.publicState().players.every((p) => p.score === 0)).toBe(true);
   });
 });

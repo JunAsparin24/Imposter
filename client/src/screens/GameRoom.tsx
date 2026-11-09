@@ -147,7 +147,9 @@ function useAnnouncement(): string {
     case 'FINAL_GUESS':
       return 'The caught Imposter is making one final guess at the secret word.';
     case 'ROUND_RESULTS':
-      return m?.results ? `${m.results.winner === 'ELVES' ? 'The Innocents' : 'The Imposters'} win. The secret word was ${m.results.word}.` : '';
+      return m?.results
+        ? `${m.results.winner === 'ELVES' ? 'The Innocents win' : m.results.winner === 'NONE' ? 'Nobody wins' : 'The Imposters win'}. The secret word was ${m.results.word}.`
+        : '';
     case 'SCOREBOARD':
       return 'Scoreboard.';
     default:
@@ -177,7 +179,7 @@ function usePhaseFeedback() {
     } else if (phase === 'ROUND_RESULTS') {
       const res = room.match?.results;
       const mine = res?.players.find((p) => p.id === session?.playerId);
-      const won = !mine || (mine.role === 'ELF') === (res?.winner === 'ELVES');
+      const won = res?.winner !== 'NONE' && (!mine || (mine.role === 'ELF') === (res?.winner === 'ELVES'));
       play(won ? 'win' : 'lose');
     }
   }, [phase, room.match?.results, session?.playerId]);

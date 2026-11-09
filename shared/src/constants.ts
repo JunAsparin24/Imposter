@@ -120,6 +120,26 @@ export function parseCustomPackLines(lines: string[]): { word: string; hint: str
   return out;
 }
 
+export const MODES: { id: import('./types').GameMode; name: string; description: string }[] = [
+  {
+    id: 'CLASSIC',
+    name: 'Classic',
+    description: 'Innocents get the secret word. Imposters only get a hint word and know who the other Imposters are.',
+  },
+  {
+    id: 'UNDERCOVER',
+    name: 'Undercover',
+    description:
+      "Imposters get a different but related word (like Pancakes vs Waffles) instead of a hint. They know they're Imposters; Innocents don't know the other word.",
+  },
+  {
+    id: 'CHAOS',
+    name: 'Chaos',
+    description:
+      "A secret, random number of Imposters every match, maybe none. Imposters don't know each other, and only sometimes get a hint. If there are no Imposters, skip the vote to win.",
+  },
+];
+
 export const CATEGORY_IDS = CATEGORIES.map((c) => c.id) as CategoryId[];
 
 export function categoryName(id: CategoryId): string {

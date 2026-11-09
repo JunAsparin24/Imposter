@@ -2,6 +2,7 @@ import { Minus, Plus } from 'lucide-react';
 import { useState } from 'react';
 import {
   CATEGORIES,
+  MODES,
   DISCUSSION_MAX_SECONDS,
   DISCUSSION_PRESETS,
   MAX_PLAYERS,
@@ -33,6 +34,7 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
   );
 
   const [packOpen, setPackOpen] = useState(false);
+  const chaos = s.mode === 'CHAOS';
   const customOn = s.categories.includes('custom');
 
   // "Random Mix" = every built-in category. The custom pack can be mixed with anything.
@@ -58,11 +60,12 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
       )}
       <fieldset disabled={!isHost} className="space-y-6">
         <Section title="Mode">
-          <div className="flex flex-wrap gap-1.5">
-            <span className="h-10 rounded-xl bg-snow px-3 text-sm font-bold leading-10 text-night-950">Classic</span>
-            <span className="h-10 rounded-xl bg-white/[0.04] px-3 text-sm font-semibold leading-10 text-night-400">Undercover · soon</span>
-            <span className="h-10 rounded-xl bg-white/[0.04] px-3 text-sm font-semibold leading-10 text-night-400">Chaos · soon</span>
-          </div>
+          <Segmented
+            value={s.mode}
+            onChange={(v) => update({ mode: v })}
+            options={MODES.map((m) => ({ value: m.id, label: m.name }))}
+          />
+          <p className="mt-2 text-xs leading-relaxed text-night-300">{MODES.find((m) => m.id === s.mode)?.description}</p>
         </Section>
 
         <Section title="Max players">
@@ -88,6 +91,12 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
         </Section>
 
         <Section title="Imposters">
+          {chaos ? (
+            <p className="rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-night-300">
+              Chaos picks a secret, random number of Imposters every match (sometimes none).
+            </p>
+          ) : (
+          <>
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -123,6 +132,8 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
           <p className="mt-2 text-xs text-night-300">
             With {playerCount} player{playerCount === 1 ? '' : 's'}: up to {max}. Imposters must be fewer than half the room.
           </p>
+          </>
+          )}
         </Section>
 
         <Section title="Categories">
@@ -153,9 +164,18 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
               {room.customPack ? 'Edit your custom word pack' : '+ Make your own word pack'}
             </button>
           )}
+          {s.mode === 'UNDERCOVER' && (
+            <p className="mt-2 text-xs text-night-300">Undercover uses its own built-in word pairs from these categories. Custom packs aren't used.</p>
+          )}
         </Section>
 
         <Section title="Voting system">
+          {chaos ? (
+            <p className="rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-night-300">
+              Chaos always uses elimination voting with Skip allowed, so the vote never gives away how many Imposters there are.
+            </p>
+          ) : (
+          <>
           <Segmented
             value={s.votingSystem}
             onChange={(v) => update({ votingSystem: v })}
@@ -169,6 +189,8 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
               ? 'Vote someone out after every clue round until all Imposters are caught, or the Imposters equal the Innocents.'
               : 'One decisive vote. Everyone names as many suspects as there are Imposters. Catch every Imposter to win; name an Innocent and the Imposters win.'}
           </p>
+          </>
+          )}
         </Section>
 
         <Section title="Discussion timer">
@@ -246,13 +268,21 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
               checked={s.allowSkipVote}
               onChange={(v) => update({ allowSkipVote: v })}
               label="Allow skip votes"
-              description="If Skip gets the most votes, nobody is eliminated."
+              disabled={chaos}
+              description={chaos ? 'Always on in Chaos.' : 'If Skip gets the most votes, nobody is eliminated.'}
             />
             <Toggle
               checked={s.grinchHint}
               onChange={(v) => update({ grinchHint: v })}
               label="Hint word for Imposters"
-              description="Every Imposter gets the same hint word, e.g. “Oven” for Cookies."
+              disabled={s.mode === 'UNDERCOVER'}
+              description={
+                s.mode === 'UNDERCOVER'
+                  ? 'Not used in Undercover: Imposters get their own word instead.'
+                  : chaos
+                    ? 'In Chaos, Imposters only get the hint in some matches (random).'
+                    : 'Every Imposter gets the same hint word, e.g. “Baked” for Cookies.'
+              }
             />
             <Toggle
               checked={s.autoAdvance}
@@ -301,10 +331,15 @@ function StepButton({ children, onClick, label }: { children: React.ReactNode; o
 /** One-line summary of the room's settings for the lobby. */
 export function settingsSummary(s: GameSettings, players: number, customPackName?: string): { label: string; value: string }[] {
   return [
-    { label: 'Mode', value: 'Classic' },
+    { label: 'Mode', value: MODES.find((m) => m.id === s.mode)?.name ?? 'Classic' },
     {
       label: 'Imposters',
-      value: s.grinchCount === 'auto' ? `Auto (${recommendedGrinchCount(players)})` : String(s.grinchCount),
+      value:
+        s.mode === 'CHAOS'
+          ? 'Secret'
+          : s.grinchCount === 'auto'
+            ? `Auto (${recommendedGrinchCount(players)})`
+            : String(s.grinchCount),
     },
     {
       label: 'Words',
@@ -315,7 +350,7 @@ export function settingsSummary(s: GameSettings, players: number, customPackName
         .filter(Boolean)
         .join(' + '),
     },
-    { label: 'Voting', value: s.votingSystem === 'ELIMINATION' ? 'Elimination' : 'Single vote' },
+    { label: 'Voting', value: s.mode === 'CHAOS' || s.votingSystem === 'ELIMINATION' ? 'Elimination' : 'Single vote' },
     { label: 'Discussion', value: s.discussionSeconds ? `${s.discussionSeconds}s` : 'No timer' },
     { label: 'Final guess', value: s.finalGuessEnabled ? 'On' : 'Off' },
     { label: 'Matches', value: s.totalMatches ? String(s.totalMatches) : 'Endless' },

@@ -1,0 +1,54 @@
+{
+  "id": "undercover",
+  "note": "Undercover mode: [wordA, wordB, category]. One word goes to the innocents, the other to the imposters (picked at random). Keep them related but clearly different.",
+  "pairs": [
+    ["Cookies", "Brownies", "food"], ["Pancakes", "Waffles", "food"], ["Cake", "Cupcake", "food"], ["Pizza", "Burger", "food"],
+    ["Ice Cream", "Frozen Yogurt", "food"], ["Coffee", "Tea", "food"], ["Candy", "Chocolate", "food"], ["Orange", "Lemon", "food"],
+    ["Donut", "Bagel", "food"], ["Spaghetti", "Lasagna", "food"], ["Chips", "Popcorn", "food"], ["Milk", "Juice", "food"],
+    ["Turkey", "Chicken", "food"], ["Banana", "Apple", "food"], ["Hot Chocolate", "Milkshake", "food"], ["Sandwich", "Wrap", "food"],
+
+    ["Dog", "Wolf", "animals"], ["Cat", "Lion", "animals"], ["Horse", "Donkey", "animals"], ["Shark", "Dolphin", "animals"],
+    ["Frog", "Lizard", "animals"], ["Bunny", "Squirrel", "animals"], ["Owl", "Eagle", "animals"], ["Duck", "Goose", "animals"],
+    ["Cow", "Pig", "animals"], ["Elephant", "Hippo", "animals"], ["Monkey", "Gorilla", "animals"], ["Deer", "Reindeer", "animals"],
+    ["Mouse", "Hamster", "animals"], ["Bear", "Panda", "animals"], ["Turtle", "Snail", "animals"], ["Penguin", "Seal", "animals"],
+
+    ["Beach", "Swimming Pool", "places"], ["School", "Library", "places"], ["Mall", "Supermarket", "places"], ["Hospital", "Pharmacy", "places"],
+    ["Airport", "Train Station", "places"], ["Zoo", "Aquarium", "places"], ["Restaurant", "Cafe", "places"], ["Bedroom", "Hotel", "places"],
+    ["Park", "Playground", "places"], ["Movie Theater", "Bowling Alley", "places"], ["Mountain", "Volcano", "places"], ["Forest", "Jungle", "places"],
+    ["Gym", "Stadium", "places"], ["Kitchen", "Bakery", "places"], ["Castle", "Palace", "places"], ["Farm", "Ranch", "places"],
+
+    ["Frozen", "Moana", "movies"], ["Toy Story", "Cars", "movies"], ["Spider-Man", "Batman", "movies"], ["Shrek", "Minions", "movies"],
+    ["The Lion King", "Madagascar", "movies"], ["Finding Nemo", "The Little Mermaid", "movies"], ["SpongeBob", "Peppa Pig", "movies"],
+    ["Harry Potter", "Star Wars", "movies"], ["Jurassic Park", "King Kong", "movies"], ["Up", "Coco", "movies"], ["Home Alone", "The Grinch", "movies"],
+
+    ["Jingle Bells", "Deck the Halls", "music"], ["Happy Birthday", "Twinkle Twinkle Little Star", "music"], ["Baby Shark", "Wheels on the Bus", "music"],
+    ["Silent Night", "Joy to the World", "music"], ["Let It Go", "Under the Sea", "music"], ["Last Christmas", "All I Want for Christmas Is You", "music"],
+
+    ["Skiing", "Snowboarding", "activities"], ["Ice Skating", "Roller Skating", "activities"], ["Swimming", "Surfing", "activities"],
+    ["Bowling", "Mini Golf", "activities"], ["Camping", "Hiking", "activities"], ["Painting", "Drawing", "activities"],
+    ["Dancing", "Singing", "activities"], ["Reading", "Writing", "activities"], ["Karaoke", "Concert", "activities"],
+    ["Sleepover", "Party", "activities"], ["Sledding", "Snowball Fight", "activities"], ["Baking", "Cooking", "activities"],
+
+    ["LEGO", "Puzzle", "toys"], ["Teddy Bear", "Doll", "toys"], ["Bike", "Scooter", "toys"], ["Skateboard", "Rollerblades", "toys"],
+    ["Chess", "Checkers", "toys"], ["Uno", "Monopoly", "toys"], ["Kite", "Balloon", "toys"], ["Video Games", "Board Games", "toys"],
+    ["Water Gun", "Nerf Gun", "toys"], ["Play-Doh", "Slime", "toys"], ["Yo-Yo", "Spinning Top", "toys"], ["Minecraft", "Roblox", "toys"],
+
+    ["Phone", "Tablet", "gadgets"], ["Laptop", "Computer", "gadgets"], ["Headphones", "Speaker", "gadgets"], ["Watch", "Bracelet", "gadgets"],
+    ["Socks", "Gloves", "gadgets"], ["Sunglasses", "Glasses", "gadgets"], ["Backpack", "Suitcase", "gadgets"], ["Wallet", "Purse", "gadgets"],
+    ["Shoes", "Slippers", "gadgets"], ["Perfume", "Deodorant", "gadgets"], ["Blanket", "Pillow", "gadgets"], ["Mug", "Water Bottle", "gadgets"],
+
+    ["Christmas Tree", "Wreath", "decorations"], ["Star", "Angel", "decorations"], ["Candle", "Lamp", "decorations"], ["Snow Globe", "Music Box", "decorations"],
+    ["Ribbon", "Bow", "decorations"], ["Stocking", "Gift Bag", "decorations"], ["Christmas Lights", "Fireworks", "decorations"], ["Present", "Card", "decorations"],
+
+    ["Santa Claus", "Easter Bunny", "characters"], ["Elsa", "Anna", "characters"], ["Mario", "Luigi", "characters"], ["Superman", "Spider-Man", "characters"],
+    ["Cinderella", "Snow White", "characters"], ["Pirate", "Ninja", "characters"], ["Witch", "Wizard", "characters"], ["Ghost", "Zombie", "characters"],
+    ["Princess", "Queen", "characters"], ["Pikachu", "Sonic", "characters"], ["Snowman", "Gingerbread Man", "characters"], ["Mickey Mouse", "Bugs Bunny", "characters"],
+
+    ["Scarf", "Tie", "clothing"], ["Gloves", "Mittens", "clothing"], ["Beanie", "Baseball Cap", "clothing"], ["Boots", "Sneakers", "clothing"],
+    ["Jacket", "Hoodie", "clothing"], ["Jeans", "Shorts", "clothing"], ["Dress", "Skirt", "clothing"], ["Pajamas", "Onesie", "clothing"],
+    ["Raincoat", "Umbrella", "clothing"], ["Swimsuit", "Wetsuit", "clothing"],
+
+    ["Rain", "Snow", "weather"], ["Thunder", "Lightning", "weather"], ["Fog", "Cloud", "weather"], ["Tornado", "Hurricane", "weather"],
+    ["Rainbow", "Sunset", "weather"], ["Icicle", "Snowflake", "weather"], ["Heater", "Fireplace", "weather"], ["Snowman", "Sandcastle", "weather"]
+  ]
+}

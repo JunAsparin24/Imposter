@@ -51,7 +51,7 @@ export function RoleRevealScreen() {
         sub={
           <>
             <b className="text-grinch">
-              {m.grinchCount} Imposter{m.grinchCount === 1 ? '' : 'es'}
+              {m.grinchCount === null ? 'A secret number of Imposters' : `${m.grinchCount} Imposter${m.grinchCount === 1 ? '' : 's'}`}
             </b>{' '}
             hiding among {participants.length} players
           </>

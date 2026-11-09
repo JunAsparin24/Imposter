@@ -1,4 +1,4 @@
-import { SCORING } from '@imposter/shared';
+import { MODES, SCORING } from '@imposter/shared';
 
 const steps = [
   {
@@ -52,6 +52,17 @@ export function HowToPlay() {
           </li>
         ))}
       </ol>
+
+      <div className="rounded-2xl bg-white/[0.03] px-4 py-3.5 text-sm">
+        <p className="mb-2 font-bold">Game modes</p>
+        <ul className="space-y-1.5 text-night-300">
+          {MODES.map((m) => (
+            <li key={m.id}>
+              <b className="text-snow">{m.name}:</b> {m.description}
+            </li>
+          ))}
+        </ul>
+      </div>
 
       <div className="rounded-2xl bg-white/[0.03] px-4 py-3.5 text-sm">
         <p className="mb-2 font-bold">Points</p>

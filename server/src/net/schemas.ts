@@ -51,7 +51,7 @@ export const schemas = {
   settings: z.object({
     settings: z
       .object({
-        mode: z.literal('CLASSIC'),
+        mode: z.enum(['CLASSIC', 'UNDERCOVER', 'CHAOS']),
         grinchCount: z.union([z.literal('auto'), z.number().int().min(1).max(maxGrinchCount(MAX_PLAYERS))]),
         categories: z
           .array(z.enum(CATEGORY_IDS as [CategoryId, ...CategoryId[]]))

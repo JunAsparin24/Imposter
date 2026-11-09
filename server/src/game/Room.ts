@@ -15,6 +15,7 @@ import {
   sanitizeName,
   type DiscussionAction,
   type ErrorCode,
+  type GameMode,
   type GameSettings,
   type LastGuessInfo,
   type MatchResults,
@@ -124,6 +125,12 @@ interface Match {
   allGuesses: { playerId: string; correct: boolean }[];
   /** Practice round: easy word, no points, not counted. */
   practice: boolean;
+  /** Mode actually used for this match (practice rounds are always Classic). */
+  mode: GameMode;
+  /** Undercover: the imposters' related-but-different word. */
+  imposterWord: WordEntry | null;
+  /** Chaos: whether imposters get a hint this match (random). */
+  hintGiven: boolean;
   lastGuess: LastGuessInfo | null;
   results: MatchResults | null;
 }
@@ -132,6 +139,8 @@ const ABANDONED_EMPTY_MS = 10 * 60_000;
 const ABANDONED_IDLE_MS = 6 * 60 * 60_000;
 const RECENT_WORDS_LIMIT = 150;
 const HISTORY_LIMIT = 30;
+/** Chaos: chance (in %) that a match has no imposters at all. */
+const CHAOS_ZERO_IMPOSTER_PERCENT = 15;
 
 const emptyStats = (): PlayerStats => ({
   matchesPlayed: 0,
@@ -428,13 +437,19 @@ export class Room {
     if (!practice && settings.categories.includes('custom') && !this.customPack) {
       throw new GameError('INVALID_SETTINGS', 'Your custom word pack is empty. Add words or untick "Custom Pack".');
     }
-    const grinchCount = resolveGrinchCount(settings, present.length);
+    const mode: GameMode = practice ? 'CLASSIC' : settings.mode;
     const max = maxGrinchCount(present.length);
-    if (grinchCount < 1 || grinchCount > max) {
+    const chosenCount = resolveGrinchCount(settings, present.length);
+    if (mode !== 'CHAOS' && (chosenCount < 1 || chosenCount > max)) {
       throw new GameError(
         'INVALID_SETTINGS',
-        `With ${present.length} players you can have at most ${max} Imposter${max === 1 ? '' : 'es'}.`,
+        `With ${present.length} players you can have at most ${max} Imposter${max === 1 ? '' : 's'}.`,
       );
+    }
+    if (mode === 'CHAOS') {
+      // Chaos rules: elimination voting with Skip, so the vote itself never reveals the imposter count.
+      settings.votingSystem = 'ELIMINATION';
+      settings.allowSkipVote = true;
     }
 
     // Validation passed — from here on we mutate.
@@ -442,11 +457,24 @@ export class Room {
     if (!practice && this.isSeriesComplete()) this.resetScoresInternal();
 
     const recent = settings.allowRepeatWords ? [] : this.recentWords;
-    const word = practice
-      ? this.deps.words.pickPractice(recent, this.deps.rng)
-      : this.deps.words.pick(settings.categories, recent, this.deps.rng, this.customPack?.words ?? []);
-    this.recentWords.push(normalizeWord(word.word));
-    if (this.recentWords.length > RECENT_WORDS_LIMIT) this.recentWords.shift();
+    let word: WordEntry;
+    let imposterWord: WordEntry | null = null;
+    if (practice) {
+      word = this.deps.words.pickPractice(recent, this.deps.rng);
+    } else if (mode === 'UNDERCOVER') {
+      const pair = this.deps.words.pickPair(settings.categories, recent, this.deps.rng);
+      word = pair.innocent;
+      imposterWord = pair.imposter;
+    } else {
+      word = this.deps.words.pick(settings.categories, recent, this.deps.rng, this.customPack?.words ?? []);
+    }
+    for (const w of [word, imposterWord]) if (w) this.recentWords.push(normalizeWord(w.word));
+    while (this.recentWords.length > RECENT_WORDS_LIMIT) this.recentWords.shift();
+
+    // Chaos: a secret, random number of imposters, sometimes none at all.
+    const grinchCount =
+      mode === 'CHAOS' ? (this.deps.rng.int(100) < CHAOS_ZERO_IMPOSTER_PERCENT ? 0 : 1 + this.deps.rng.int(max)) : chosenCount;
+    const hintGiven = mode === 'CHAOS' ? this.deps.rng.int(2) === 1 : true;
 
     const ids = present.map((p) => p.id);
     const grinchIds = shuffle(ids, this.deps.rng).slice(0, grinchCount);
@@ -477,6 +505,9 @@ export class Room {
       finalGuess: null,
       allGuesses: [],
       practice,
+      mode,
+      imposterWord,
+      hintGiven,
       lastGuess: null,
       results: null,
     };
@@ -804,6 +835,10 @@ export class Room {
         return;
       }
     }
+    if (m.grinchIds.length === 0) {
+      if (r.kind === 'SKIPPED') return this.endMatch('ELVES', 'NO_IMPOSTERS');
+      if (r.kind === 'ELIMINATED' || r.kind === 'ACCUSED') return this.endMatch('NONE', 'PARANOIA');
+    }
     if (r.kind === 'ELIMINATED') {
       const id = r.playerIds[0];
       if (m.roles.get(id) === 'GRINCH' && m.settings.finalGuessEnabled) {
@@ -857,6 +892,8 @@ export class Room {
     const alive = this.aliveIds();
     const grinches = alive.filter((id) => m.roles.get(id) === 'GRINCH').length;
     const elves = alive.length - grinches;
+    // Chaos with no imposters at all: only the vote decides (Skip = win, voting someone out = Paranoia).
+    if (m.grinchIds.length === 0) return null;
     if (grinches === 0) {
       const anyCaught = m.eliminatedIds.some((id) => m.roles.get(id) === 'GRINCH');
       return { winner: 'ELVES', reason: anyCaught ? 'GRINCHES_CAUGHT' : 'GRINCHES_LEFT' };
@@ -967,6 +1004,7 @@ export class Room {
       winner,
       reason,
       word: m.word.word,
+      imposterWord: m.imposterWord?.word ?? null,
       category: m.word.category,
       categoryName: this.categoryLabel(m),
       players: m.participantIds.map((id) => ({
@@ -1175,9 +1213,9 @@ export class Room {
         id: m.id,
         number: m.number,
         round: m.round,
-        mode: m.settings.mode,
+        mode: m.mode,
         votingSystem: m.settings.votingSystem,
-        grinchCount: m.grinchIds.length,
+        grinchCount: m.mode === 'CHAOS' ? null : m.grinchIds.length,
         finalGuessEnabled: m.settings.finalGuessEnabled,
         allowSkipVote: m.settings.allowSkipVote,
         practice: m.practice,
@@ -1260,9 +1298,15 @@ export class Room {
       out.category = m.word.category === 'practice' ? null : m.word.category;
       out.categoryName = this.categoryLabel(m);
     } else {
-      // Every Imposter gets the SAME hint word (never the secret word itself).
-      if (m.settings.grinchHint) out.hint = m.word.hint || 'No hint for this one';
-      out.teammates = m.grinchIds
+      if (m.mode === 'UNDERCOVER') {
+        // Undercover: imposters get their own related word (never the innocents' word).
+        out.word = m.imposterWord!.word;
+      } else if (m.settings.grinchHint && m.hintGiven) {
+        // Every Imposter gets the SAME hint word (never the secret word itself).
+        out.hint = m.word.hint || 'No hint for this one';
+      }
+      // Chaos: imposters don't know who the other imposters are (or how many there are).
+      if (m.mode !== 'CHAOS') out.teammates = m.grinchIds
         .filter((id) => id !== playerId)
         .map((id) => ({ id, name: this.players.get(id)?.name ?? 'Unknown', avatar: this.players.get(id)?.avatar ?? 'gentleman' }));
     }

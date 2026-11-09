@@ -19,11 +19,15 @@ export type Phase =
   | 'ROUND_RESULTS'
   | 'SCOREBOARD';
 
-/** Only CLASSIC is implemented in Phase 1. UNDERCOVER / CHAOS are planned. */
-export type GameMode = 'CLASSIC';
+/**
+ * CLASSIC: imposters get a hint word. UNDERCOVER: imposters get a related but different word.
+ * CHAOS: secret, random number of imposters (maybe zero), teammates hidden, hint is random.
+ */
+export type GameMode = 'CLASSIC' | 'UNDERCOVER' | 'CHAOS';
 export type VotingSystem = 'ELIMINATION' | 'SINGLE';
 export type Role = 'ELF' | 'GRINCH';
-export type Team = 'ELVES' | 'GRINCHES';
+/** 'NONE' = nobody wins (Chaos: the group voted someone out when there were no imposters). */
+export type Team = 'ELVES' | 'GRINCHES' | 'NONE';
 
 export type CategoryId =
   | 'food'
@@ -149,7 +153,11 @@ export type WinReason =
   | 'GRINCHES_OUTNUMBER'
   | 'FINAL_GUESS'
   | 'INNOCENT_ACCUSED'
-  | 'GRINCHES_LEFT';
+  | 'GRINCHES_LEFT'
+  /** Chaos: there were no imposters and the group skipped the vote. */
+  | 'NO_IMPOSTERS'
+  /** Chaos: there were no imposters but the group voted someone out anyway. */
+  | 'PARANOIA';
 
 export interface ResultPlayer {
   id: string;
@@ -180,6 +188,8 @@ export interface MatchResults {
   winner: Team;
   reason: WinReason;
   word: string;
+  /** Undercover only: the imposters' (different) word. */
+  imposterWord: string | null;
   category: CategoryId | 'practice';
   categoryName: string;
   players: ResultPlayer[];
@@ -209,7 +219,8 @@ export interface PublicMatchState {
   round: number;
   mode: GameMode;
   votingSystem: VotingSystem;
-  grinchCount: number;
+  /** null in Chaos mode, where the number of imposters is secret. */
+  grinchCount: number | null;
   finalGuessEnabled: boolean;
   allowSkipVote: boolean;
   /** Practice round: easy everyday word, no points. */
