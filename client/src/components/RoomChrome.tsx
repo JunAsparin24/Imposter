@@ -6,6 +6,7 @@ import { roleName, roleText } from '../lib/roles';
 import { useGame, useRoom } from '../state/GameProvider';
 import { Avatar } from './decor';
 import { HowToPlay } from './HowToPlay';
+import { PowerIcon, PowerSheet, powerName } from './PowerSheet';
 import { RoleCard } from './RoleCard';
 import { SettingsSheet } from './SettingsSheet';
 import { Button, ConfirmButton, Sheet, Toggle } from './ui';
@@ -16,6 +17,7 @@ export function RoomHeader() {
   const { room, priv, isHost, isDisplay, status, prefs, setPrefs, leaveRoom, closeDisplay, send, toast } = useRoom();
   const [menu, setMenu] = useState(false);
   const [roleOpen, setRoleOpen] = useState(false);
+  const [powerOpen, setPowerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [playersOpen, setPlayersOpen] = useState(false);
@@ -48,6 +50,18 @@ export function RoomHeader() {
               <WifiOff size={13} /> Offline
             </span>
           )}
+          {live && priv.power && (
+            <Button
+              size="sm"
+              variant={priv.powerActions.length ? 'gold' : 'outline'}
+              icon={<PowerIcon power={priv.power} />}
+              onClick={() => setPowerOpen(true)}
+              aria-label={`${powerName(priv.power)} power${priv.powerActions.length ? ' (ready to use)' : ''}`}
+              className={priv.powerActions.length ? 'animate-pulse' : ''}
+            >
+              <span className="hidden min-[400px]:inline">Power</span>
+            </Button>
+          )}
           {live && priv.role && (
             <Button size="sm" variant="outline" icon={<KeyRound size={16} />} onClick={() => setRoleOpen(true)} aria-label="View my secret role">
               <span className="hidden min-[360px]:inline">My role</span>
@@ -63,6 +77,7 @@ export function RoomHeader() {
         </div>
       </header>
 
+      <PowerSheet open={powerOpen} onClose={() => setPowerOpen(false)} />
       <Sheet open={roleOpen} onClose={() => setRoleOpen(false)} title="Your secret role">
         <RoleCard priv={priv} compact />
       </Sheet>

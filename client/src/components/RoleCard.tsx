@@ -5,6 +5,7 @@ import type { PrivatePlayerState } from '@imposter/shared';
 import { play, vibrate } from '../lib/sound';
 import { useGame } from '../state/GameProvider';
 import { AvatarImg } from './decor';
+import { POWER_INFO } from './PowerSheet';
 import { Toggle } from './ui';
 
 /**
@@ -152,6 +153,20 @@ function TeamBox({ priv }: { priv: PrivatePlayerState }) {
   );
 }
 
+/** The player's extra power (Detective, Saboteur, Mayor), shown under their role. */
+function PowerBox({ priv }: { priv: PrivatePlayerState }) {
+  if (!priv.power) return null;
+  const info = POWER_INFO[priv.power];
+  return (
+    <div className="w-full rounded-2xl bg-gold/10 px-4 py-3">
+      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-gold/80">Your power</p>
+      <p className="heading mt-0.5 text-xl text-gold">{info.title}</p>
+      <p className="mt-0.5 text-xs text-night-300">{info.rule}</p>
+      {priv.power !== 'MAYOR' && <p className="mt-1 text-[11px] font-semibold text-gold/80">Use it with the Power button at the top.</p>}
+    </div>
+  );
+}
+
 function RoleContent({ priv }: { priv: PrivatePlayerState }) {
   const { state } = useGame();
   const mode = state?.room.match?.mode ?? 'CLASSIC';
@@ -170,6 +185,7 @@ function RoleContent({ priv }: { priv: PrivatePlayerState }) {
               ? 'Chaos: there might be several Imposters, or none at all.'
               : 'Give a one-word clue without giving the word away.'}
         </p>
+        <PowerBox priv={priv} />
       </>
     );
   }
@@ -217,6 +233,7 @@ function RoleContent({ priv }: { priv: PrivatePlayerState }) {
         <p className="max-w-[18rem] text-sm text-snow/80">
           {priv.hint ? 'Blend in. Listen closely to everyone\'s clues.' : 'No hint this time. Blend in and listen closely.'}
         </p>
+        <PowerBox priv={priv} />
       </>
     );
   }

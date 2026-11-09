@@ -3,6 +3,7 @@ import { History, Home, Play, RotateCcw, Settings2, Trophy } from 'lucide-react'
 import { useState } from 'react';
 import type { MatchResults, PlayerStats, PublicPlayer, WinReason } from '@imposter/shared';
 import { Avatar, AvatarImg, Confetti, CountUp } from '../components/decor';
+import { powerName } from '../components/PowerSheet';
 import { SettingsSheet } from '../components/SettingsSheet';
 import { ActionBar, Button, ConfirmButton, SectionTitle, Sheet } from '../components/ui';
 import { wonWith } from '../lib/roles';
@@ -124,6 +125,7 @@ function RoleList({ title, tone, players }: { title: string; tone: 'grinch' | 'e
           <li key={p.id} className="flex items-center gap-2 text-sm">
             <AvatarImg id={p.avatar} size={20} />
             <span className={`truncate font-semibold ${p.eliminated || p.left ? 'text-night-400' : ''}`}>{p.name}</span>
+            {p.power && <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gold">{powerName(p.power)}</span>}
             {p.eliminated && <span className="text-xs text-night-400">· voted out</span>}
             {p.left && <span className="text-xs text-night-400">· left</span>}
           </li>

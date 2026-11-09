@@ -16,6 +16,9 @@ import {
   type DiscussionAction,
   type ErrorCode,
   type GameMode,
+  type Power,
+  type PowerAction,
+  type SabotageNews,
   type GameSettings,
   type LastGuessInfo,
   type MatchResults,
@@ -131,6 +134,16 @@ interface Match {
   hintGiven: boolean;
   /** The Jester this match, if one was dealt. */
   jesterId: string | null;
+  /** Powers dealt this match: player id -> power. */
+  powers: Map<string, Power>;
+  /** Players who have used their once-per-match power. */
+  powersUsed: Set<string>;
+  /** Detective's private result. */
+  detectiveResult: { targetId: string; isImposter: boolean } | null;
+  /** Latest public sabotage news. */
+  sabotage: SabotageNews | null;
+  /** Saboteur cut the discussion: voting starts at this time no matter what. */
+  forcedVoteAt: number | null;
   lastGuess: LastGuessInfo | null;
   results: MatchResults | null;
 }
@@ -480,6 +493,20 @@ export class Room {
       roles.set(jesterId, 'JESTER');
     }
 
+    // Powers: Detective and Mayor go to plain Innocents, the Saboteur to an Imposter.
+    const powers = new Map<string, Power>();
+    if (!practice && ids.length >= 5) {
+      const plainInnocents = () => ids.filter((id) => roles.get(id) === 'ELF' && !powers.has(id));
+      for (const power of ['DETECTIVE', 'MAYOR'] as const) {
+        const pool = plainInnocents();
+        // Keep at least one Innocent without a power.
+        if (settings.specialRoles.includes(power) && pool.length >= 2) powers.set(pool[this.deps.rng.int(pool.length)], power);
+      }
+      if (settings.specialRoles.includes('SABOTEUR') && grinchIds.length > 0) {
+        powers.set(grinchIds[this.deps.rng.int(grinchIds.length)], 'SABOTEUR');
+      }
+    }
+
     this.match = {
       id: generateId('m'),
       number: practice ? 0 : this.matchesPlayed + 1,
@@ -508,6 +535,11 @@ export class Room {
       mode,
       hintGiven,
       jesterId,
+      powers,
+      powersUsed: new Set(),
+      detectiveResult: null,
+      sabotage: null,
+      forcedVoteAt: null,
       lastGuess: null,
       results: null,
     };
@@ -547,6 +579,7 @@ export class Room {
   discussionControl(actorId: string, action: DiscussionAction, phaseSeq: number): void {
     this.requireHost(actorId);
     this.requirePhase('DISCUSSION', phaseSeq);
+    if (this.match!.forcedVoteAt !== null) throw new GameError('NOT_ALLOWED', 'A Saboteur cut the discussion short. Voting is about to start.');
     const now = this.now();
     if (action === 'pause') {
       if (this.deadline === null) throw new GameError('NOT_ALLOWED', 'The timer is not running.');
@@ -597,6 +630,43 @@ export class Room {
     if (m.resultRevealed) throw new GameError('STALE_ACTION', 'Already revealed.');
     m.resultRevealed = true;
     if (m.settings.autoAdvance) this.deadline = this.now() + TIMING.VOTE_RESULTS_AUTO_MS;
+  }
+
+  /** What a player's power can do right now (each power works once per match, only while alive). */
+  private availablePowerActions(playerId: string): PowerAction[] {
+    const m = this.match;
+    if (!m || m.results || !this.isAlive(playerId) || m.powersUsed.has(playerId)) return [];
+    const power = m.powers.get(playerId);
+    if (power === 'DETECTIVE' && (this.phase === 'CLUE' || this.phase === 'DISCUSSION')) return ['INVESTIGATE'];
+    if (power === 'SABOTEUR') {
+      const speaker = this.currentSpeakerId();
+      if (this.phase === 'CLUE' && speaker && speaker !== playerId) return ['SKIP_TURN'];
+      if (this.phase === 'DISCUSSION' && m.forcedVoteAt === null) return ['CUT_DISCUSSION'];
+    }
+    return [];
+  }
+
+  /** Detective's check or Saboteur's sabotage. Once per match, checked on the server. */
+  usePower(actorId: string, action: PowerAction, targetId: string | null, phaseSeq: number): void {
+    const m = this.requireMatch();
+    if (phaseSeq !== this.phaseSeq) throw new GameError('STALE_ACTION', 'The game has moved on.');
+    if (!this.availablePowerActions(actorId).includes(action)) {
+      throw new GameError('NOT_ALLOWED', m.powersUsed.has(actorId) ? 'You already used your power this match.' : "You can't do that right now.");
+    }
+    if (action === 'INVESTIGATE') {
+      if (!targetId || targetId === actorId || !this.isAlive(targetId)) throw new GameError('INVALID_INPUT', 'Pick another player who is still in the game.');
+      m.detectiveResult = { targetId, isImposter: m.roles.get(targetId) === 'GRINCH' };
+    } else if (action === 'SKIP_TURN') {
+      const skipped = this.currentSpeakerId();
+      m.sabotage = { kind: 'SKIP_TURN', round: m.round, targetId: skipped };
+      this.nextTurn(false);
+    } else {
+      m.sabotage = { kind: 'CUT_DISCUSSION', round: m.round, targetId: null };
+      m.forcedVoteAt = this.now() + TIMING.SABOTAGE_CUT_MS;
+      this.deadline = m.forcedVoteAt;
+      this.pausedRemainingMs = null;
+    }
+    m.powersUsed.add(actorId);
   }
 
   closeVoting(actorId: string, phaseSeq: number): void {
@@ -718,6 +788,7 @@ export class Room {
 
   private openVote(revote?: PendingRevote): void {
     const m = this.match!;
+    m.forcedVoteAt = null;
     const alive = this.aliveIds();
     const candidateIds = revote ? revote.candidateIds : alive;
     const slots = revote
@@ -760,9 +831,11 @@ export class Room {
     const v = m.vote!;
     const counts = new Map<string, number>(v.candidateIds.map((c) => [c, 0]));
     let skips = 0;
-    for (const b of v.ballots.values()) {
-      if (b.skip) skips++;
-      else for (const pick of b.picks) counts.set(pick, (counts.get(pick) ?? 0) + 1);
+    for (const [voterId, b] of v.ballots) {
+      // The Mayor's vote secretly counts twice.
+      const weight = m.powers.get(voterId) === 'MAYOR' ? 2 : 1;
+      if (b.skip) skips += weight;
+      else for (const pick of b.picks) counts.set(pick, (counts.get(pick) ?? 0) + weight);
     }
     const ranked: VoteTallyEntry[] = [...counts]
       .map(([targetId, votes]) => ({ targetId, votes }))
@@ -1016,6 +1089,7 @@ export class Room {
         name: nameOf(id),
         avatar: this.players.get(id)?.avatar ?? 'gentleman',
         role: m.roles.get(id)!,
+        power: m.powers.get(id) ?? null,
         eliminated: m.eliminatedIds.includes(id),
         left: m.departedIds.includes(id),
       })),
@@ -1087,6 +1161,11 @@ export class Room {
         break;
       }
       case 'DISCUSSION':
+        if (m.forcedVoteAt !== null && now >= m.forcedVoteAt) {
+          m.forcedVoteAt = null;
+          this.openVote();
+          return true;
+        }
         if (expired && m.settings.autoAdvance) {
           this.openVote();
           return true;
@@ -1223,7 +1302,7 @@ export class Room {
         finalGuessEnabled: m.settings.finalGuessEnabled,
         allowSkipVote: m.settings.allowSkipVote,
         practice: m.practice,
-        specialRoles: m.jesterId ? ['JESTER'] : [],
+        specialRoles: [...(m.jesterId ? (['JESTER'] as const) : []), ...new Set(m.powers.values())],
         participantIds: [...m.participantIds],
         acknowledgedIds: [...m.acknowledged],
         speakingOrder: [...m.speakingOrder],
@@ -1246,6 +1325,7 @@ export class Room {
           : null,
         lastResult: m.lastResult && !m.resultRevealed ? { ...m.lastResult, roles: {} } : m.lastResult,
         resultRevealed: m.resultRevealed,
+        sabotage: m.sabotage,
         finalGuess: m.finalGuess
           ? { guesserIds: [...m.finalGuess.guesserIds], submittedIds: [] }
           : null,
@@ -1285,6 +1365,10 @@ export class Room {
       hint: null,
       isGuessing: false,
       canJudge: false,
+      power: null,
+      powerUsed: false,
+      powerActions: [],
+      detectiveResult: null,
       // The host wrote these words, so sending them back to the host leaks nothing new.
       customPackLines:
         playerId === this.hostId && this.customPack
@@ -1298,6 +1382,13 @@ export class Room {
     if (!role) return { ...base, role: playerId ? 'SPECTATOR' : null };
 
     const out: PrivatePlayerState = { ...base, role };
+    const power = m.powers.get(playerId) ?? null;
+    if (power) {
+      out.power = power;
+      out.powerUsed = m.powersUsed.has(playerId);
+      out.powerActions = this.availablePowerActions(playerId);
+      if (power === 'DETECTIVE') out.detectiveResult = m.detectiveResult;
+    }
     if (role === 'ELF' || role === 'JESTER') {
       out.word = m.word.word;
       out.category = m.word.category === 'practice' ? null : m.word.category;

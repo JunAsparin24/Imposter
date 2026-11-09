@@ -39,6 +39,14 @@ never in practice rounds). Everyone can see which special roles are in play, but
 
 - **Jester** (4+ players): one non-Imposter knows the word but wins alone (+4) if the group votes them
   out, which ends the match. Otherwise the Jester loses.
+- **Detective** (5+ players): an Innocent who, once per match (not per round), secretly checks one
+  player during clues or discussion and learns whether they are an Imposter. Only they see the answer.
+- **Saboteur** (5+ players): an Imposter who, once per match, skips the current speaker's turn or
+  cuts discussion to 10 seconds. Everyone sees that a Saboteur struck, but not who.
+- **Mayor** (5+ players): an Innocent whose vote secretly counts twice. Ballots stay private, so the
+  Mayor can't prove who they are, and an Imposter can claim to be the Mayor too.
+
+Detective, Saboteur and Mayor are extra powers on top of a normal team, so they win or lose with it.
 
 ## Putting it online (Render)
 

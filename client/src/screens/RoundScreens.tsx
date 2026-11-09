@@ -23,6 +23,24 @@ function PhaseTitle({ kicker, title, sub, tone }: { kicker?: string; title: stri
 export { PhaseTitle };
 
 /** Small banner shown when a player has been eliminated and is now a spectator. */
+/** "A Saboteur struck!" banner for the current round (never says who). */
+export function SabotageBanner() {
+  const { room, playerById } = useRoom();
+  const s = room.match?.sabotage;
+  if (!s || s.round !== room.match!.round) return null;
+  const who = playerById(s.targetId)?.name ?? 'someone';
+  return (
+    <motion.p
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1, x: [0, -6, 6, -3, 3, 0] }}
+      className="rounded-2xl border border-grinch/50 bg-grinch/15 px-4 py-2.5 text-center text-sm font-bold text-grinch-light"
+      role="status"
+    >
+      {s.kind === 'SKIP_TURN' ? `Sabotage! A Saboteur skipped ${who}'s turn.` : 'Sabotage! A Saboteur cut the discussion short. Voting starts in seconds.'}
+    </motion.p>
+  );
+}
+
 export function EliminatedNotice() {
   const { me } = useRoom();
   if (me?.status !== 'ELIMINATED') return null;
@@ -128,6 +146,7 @@ export function ClueScreen() {
           {lastGuesser.name}'s final guess was wrong. The game goes on.
         </p>
       )}
+      <SabotageBanner />
       <EliminatedNotice />
 
       <div className="text-center">
@@ -243,6 +262,7 @@ export function DiscussionScreen() {
 
   return (
     <div className="flex flex-1 flex-col gap-5">
+      <SabotageBanner />
       <EliminatedNotice />
       <PhaseTitle kicker={`Round ${m.round}`} title="Discuss!" sub="Who's the Imposter? Talk it out." tone="gold" />
 

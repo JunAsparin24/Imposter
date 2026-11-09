@@ -29,7 +29,18 @@ export type VotingSystem = 'ELIMINATION' | 'SINGLE';
 export type Role = 'ELF' | 'GRINCH' | 'JESTER';
 
 /** Optional extra roles the host can switch on. */
-export type SpecialRole = 'JESTER';
+export type SpecialRole = 'JESTER' | 'DETECTIVE' | 'SABOTEUR' | 'MAYOR';
+/** Powers sit on top of a normal team: Detective/Mayor are Innocents, Saboteur is an Imposter. */
+export type Power = 'DETECTIVE' | 'SABOTEUR' | 'MAYOR';
+export type PowerAction = 'INVESTIGATE' | 'SKIP_TURN' | 'CUT_DISCUSSION';
+
+/** Public news of a sabotage (never says who did it). */
+export interface SabotageNews {
+  kind: 'SKIP_TURN' | 'CUT_DISCUSSION';
+  round: number;
+  /** For SKIP_TURN: whose turn got skipped. */
+  targetId: string | null;
+}
 /** 'NONE' = nobody wins (Chaos: the group voted someone out when there were no imposters). */
 export type Team = 'ELVES' | 'GRINCHES' | 'NONE' | 'JESTER';
 
@@ -172,6 +183,8 @@ export interface ResultPlayer {
   name: string;
   avatar: string;
   role: Role;
+  /** Detective / Saboteur / Mayor, revealed at the end. */
+  power: Power | null;
   eliminated: boolean;
   left: boolean;
 }
@@ -233,6 +246,8 @@ export interface PublicMatchState {
   practice: boolean;
   /** Special roles actually dealt this match (everyone knows they exist, not who has them). */
   specialRoles: SpecialRole[];
+  /** Latest sabotage, announced to everyone without saying who did it. */
+  sabotage: SabotageNews | null;
   participantIds: string[];
   acknowledgedIds: string[];
   speakingOrder: string[];
@@ -290,6 +305,14 @@ export interface PrivatePlayerState {
   isGuessing: boolean;
   /** I'm an Innocent (I know the word), so I can confirm whether the spoken guess was right. */
   canJudge: boolean;
+  /** My extra power, if I have one. */
+  power: Power | null;
+  /** Each power works once per match. */
+  powerUsed: boolean;
+  /** Which power actions I can take right now. */
+  powerActions: PowerAction[];
+  /** Detective only: the result of my one check. */
+  detectiveResult: { targetId: string; isImposter: boolean } | null;
   /** Host only: the room's custom word pack, one entry per line ("Word | hint"). */
   customPackLines: string[] | null;
 }
@@ -372,6 +395,7 @@ export interface ClientToServerEvents {
   'game:startVoting': (p: { phaseSeq: number }, ack: AckFn) => void;
   'game:submitVote': (p: { voteId: string; picks: string[]; skip: boolean }, ack: AckFn) => void;
   'game:closeVoting': (p: { phaseSeq: number }, ack: AckFn) => void;
+  'game:usePower': (p: { action: PowerAction; targetId?: string; phaseSeq: number }, ack: AckFn) => void;
   'game:revealResult': (p: { phaseSeq: number }, ack: AckFn) => void;
   'game:continue': (p: { phaseSeq: number }, ack: AckFn) => void;
   'game:judgeGuess': (p: { correct: boolean; phaseSeq: number }, ack: AckFn) => void;

@@ -48,6 +48,7 @@ export const schemas = {
     lines: z.array(z.string().max(200)).max(CUSTOM_PACK.MAX_WORDS * 2),
   }),
   locked: z.object({ locked: z.boolean() }),
+  power: z.object({ action: z.enum(['INVESTIGATE', 'SKIP_TURN', 'CUT_DISCUSSION']), targetId: id.optional(), phaseSeq }),
   settings: z.object({
     settings: z
       .object({
@@ -69,7 +70,7 @@ export const schemas = {
         allowRepeatWords: z.boolean(),
         totalMatches: z.number().int().min(0).max(50),
         maxPlayers: z.number().int().min(MIN_PLAYERS).max(MAX_PLAYERS),
-        specialRoles: z.array(z.enum(['JESTER'])).max(5),
+        specialRoles: z.array(z.enum(['JESTER', 'DETECTIVE', 'SABOTEUR', 'MAYOR'])).max(8),
       })
       .partial()
       .strip(),

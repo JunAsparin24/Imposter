@@ -315,6 +315,9 @@ export function createGameServer(opts: GameServerOptions) {
       act((room, id) => room.submitVote(id, voteId, picks, skip)),
     );
     handle('game:revealResult', schemas.phaseSeq, ({ phaseSeq }) => act((room, id) => room.revealResult(id, phaseSeq)));
+    handle('game:usePower', schemas.power, ({ action, targetId, phaseSeq }) =>
+      act((room, id) => room.usePower(id, action, targetId ?? null, phaseSeq)),
+    );
     handle('game:closeVoting', schemas.phaseSeq, ({ phaseSeq }) => act((room, id) => room.closeVoting(id, phaseSeq)));
     handle('game:continue', schemas.phaseSeq, ({ phaseSeq }) =>
       act((room, id) => room.continueFromResults(id, phaseSeq)),

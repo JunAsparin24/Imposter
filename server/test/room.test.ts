@@ -702,3 +702,83 @@ describe('jester', () => {
     expect(t.room.match!.jesterId).toBeNull();
   });
 });
+
+describe('powers: detective, saboteur, mayor', () => {
+  const holder = (t: ReturnType<typeof makeRoom>, power: string) => [...t.room.match!.powers].find(([, p]) => p === power)?.[0];
+
+  it('the detective checks one player once per MATCH and only they see the answer', () => {
+    const t = makeRoom(6, { specialRoles: ['DETECTIVE'], grinchCount: 1, finalGuessEnabled: false, allowSkipVote: true });
+    startToClues(t);
+    const det = holder(t, 'DETECTIVE')!;
+    expect(det).toBeTruthy();
+    expect(t.room.match!.roles.get(det)).toBe('ELF');
+    expect(t.room.privateState(det).powerActions).toEqual(['INVESTIGATE']);
+    const g = grinches(t)[0];
+    expectError(() => t.room.usePower(g, 'INVESTIGATE', det, t.room.phaseSeq), 'NOT_ALLOWED'); // not a detective
+    t.room.usePower(det, 'INVESTIGATE', g, t.room.phaseSeq);
+    expect(t.room.privateState(det).detectiveResult).toEqual({ targetId: g, isImposter: true });
+    expect(t.room.privateState(g).detectiveResult).toBeNull();
+    expectError(() => t.room.usePower(det, 'INVESTIGATE', g, t.room.phaseSeq), 'NOT_ALLOWED');
+    // Next round: still used up.
+    toVoting(t);
+    voteAll(t, () => 'SKIP');
+    continueResults(t);
+    expect(t.room.publicState().match!.round).toBe(2);
+    expect(t.room.privateState(det).powerActions).toEqual([]);
+    expect(t.room.privateState(det).detectiveResult).toEqual({ targetId: g, isImposter: true });
+  });
+
+  it('the saboteur can skip a turn once, announced without naming them', () => {
+    const t = makeRoom(6, { specialRoles: ['SABOTEUR'], grinchCount: 1 });
+    startToClues(t);
+    const sab = holder(t, 'SABOTEUR')!;
+    expect(grinches(t)).toContain(sab);
+    // Move on until someone else is speaking.
+    while (t.room.publicState().match!.currentSpeakerId === sab) {
+      const s = t.room.publicState().match!;
+      t.room.advanceTurn(s.currentSpeakerId!, s.turnIndex);
+    }
+    const victim = t.room.publicState().match!.currentSpeakerId!;
+    const before = t.room.publicState().match!.turnIndex;
+    t.room.usePower(sab, 'SKIP_TURN', null, t.room.phaseSeq);
+    const pub = t.room.publicState();
+    expect(pub.match!.sabotage).toMatchObject({ kind: 'SKIP_TURN', targetId: victim });
+    expect(JSON.stringify(pub.match!.sabotage)).not.toContain(sab);
+    expect(pub.match!.turnIndex).toBeGreaterThan(before);
+    expectError(() => t.room.usePower(sab, 'SKIP_TURN', null, t.room.phaseSeq), 'NOT_ALLOWED');
+  });
+
+  it('the saboteur can cut discussion to 10 seconds, even with auto-advance off', () => {
+    const t = makeRoom(6, { specialRoles: ['SABOTEUR'], grinchCount: 1, discussionSeconds: 120, autoAdvance: false });
+    startToClues(t);
+    finishClues(t);
+    const sab = holder(t, 'SABOTEUR')!;
+    t.room.usePower(sab, 'CUT_DISCUSSION', null, t.room.phaseSeq);
+    expect(t.room.deadline).toBe(t.clock.t + TIMING.SABOTAGE_CUT_MS);
+    expectError(() => t.room.discussionControl(t.host, 'extend', t.room.phaseSeq), 'NOT_ALLOWED');
+    t.clock.t += TIMING.SABOTAGE_CUT_MS;
+    t.room.tick();
+    expect(t.room.phase).toBe('VOTING');
+  });
+
+  it("the mayor's vote secretly counts twice", () => {
+    const t = makeRoom(6, { specialRoles: ['MAYOR'], grinchCount: 1, allowSkipVote: false, finalGuessEnabled: false });
+    startToClues(t);
+    const mayor = holder(t, 'MAYOR')!;
+    toVoting(t);
+    const others = t.room.aliveIds().filter((id) => id !== mayor);
+    const [a, b] = others;
+    // Mayor and A vote for B; everyone else votes for A.
+    voteAll(t, (v) => (v === mayor || v === a ? b : v === b ? a : a));
+    const tally = t.room.publicState().match!.lastResult!.tally;
+    expect(tally.find((x) => x.targetId === b)!.votes).toBe(3); // mayor (2) + A (1)
+    // The mayor's identity is not in the public state.
+    expect(t.room.privateState(others[2]).power).toBeNull();
+  });
+
+  it('powers are not dealt below 5 players', () => {
+    const t = makeRoom(4, { specialRoles: ['DETECTIVE', 'SABOTEUR', 'MAYOR'] });
+    startToClues(t);
+    expect(t.room.match!.powers.size).toBe(0);
+  });
+});

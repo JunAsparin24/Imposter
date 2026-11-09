@@ -143,6 +143,27 @@ export const SPECIAL_ROLES: { id: import('./types').SpecialRole; name: string; d
       "One non-Imposter secretly becomes the Jester. They know the word but win alone if the group votes them out, so they act suspicious on purpose.",
     minPlayers: 4,
   },
+  {
+    id: 'DETECTIVE',
+    name: 'Detective',
+    description:
+      'An Innocent who, once per match, can secretly check one player during clues or discussion and learn if they are an Imposter. Only the Detective sees the answer.',
+    minPlayers: 5,
+  },
+  {
+    id: 'SABOTEUR',
+    name: 'Saboteur',
+    description:
+      "An Imposter who, once per match, can skip the current speaker's turn or cut the discussion to 10 seconds. Everyone hears that a Saboteur struck, but not who.",
+    minPlayers: 5,
+  },
+  {
+    id: 'MAYOR',
+    name: 'Mayor',
+    description:
+      "An Innocent whose vote secretly counts twice. Votes are private, so the Mayor can never prove who they are (and an Imposter can claim to be them).",
+    minPlayers: 5,
+  },
 ];
 
 export const CATEGORY_IDS = CATEGORIES.map((c) => c.id) as CategoryId[];
@@ -192,6 +213,8 @@ export const TIMING = {
   VOTER_DISCONNECT_GRACE_MS: 20_000,
   /** Time for the caught Imposter to say a guess and an Innocent to confirm it. */
   FINAL_GUESS_MS: 60_000,
+  /** Saboteur: discussion is cut to this. */
+  SABOTAGE_CUT_MS: 10_000,
   VOTE_RESULTS_AUTO_MS: 9_000,
   DISCUSSION_EXTEND_MS: 30_000,
 } as const;
