@@ -6,7 +6,7 @@ import { roleName, roleText } from '../lib/roles';
 import { useGame, useRoom } from '../state/GameProvider';
 import { Avatar } from './decor';
 import { HowToPlay } from './HowToPlay';
-import { PowerIcon, PowerSheet, powerName } from './PowerSheet';
+import { PowerIcon, PowerSheet, powerName, sheetKind } from './PowerSheet';
 import { RoleCard } from './RoleCard';
 import { SettingsSheet } from './SettingsSheet';
 import { Button, ConfirmButton, Sheet, Toggle } from './ui';
@@ -50,13 +50,13 @@ export function RoomHeader() {
               <WifiOff size={13} /> Offline
             </span>
           )}
-          {live && priv.power && (
+          {live && sheetKind(priv) && (
             <Button
               size="sm"
               variant={priv.powerActions.length ? 'gold' : 'outline'}
-              icon={<PowerIcon power={priv.power} />}
+              icon={<PowerIcon power={sheetKind(priv)!} />}
               onClick={() => setPowerOpen(true)}
-              aria-label={`${powerName(priv.power)} power${priv.powerActions.length ? ' (ready to use)' : ''}`}
+              aria-label={`${powerName(sheetKind(priv)!)} power${priv.powerActions.length ? ' (ready to use)' : ''}`}
               className={priv.powerActions.length ? 'animate-pulse' : ''}
             >
               <span className="hidden min-[400px]:inline">Power</span>

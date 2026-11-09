@@ -88,6 +88,12 @@ export function HowToPlay() {
           <dd className="text-right font-bold text-gold">+{SCORING.FINAL_GUESS_BONUS}</dd>
           <dt>Jester voted out</dt>
           <dd className="text-right font-bold text-gold">+{SCORING.JESTER_WIN}</dd>
+          <dt>Executioner's target voted out</dt>
+          <dd className="text-right font-bold text-gold">+{SCORING.EXECUTIONER_WIN}</dd>
+          <dt>Drifter guesses the word</dt>
+          <dd className="text-right font-bold text-gold">+{SCORING.DRIFTER_WIN}</dd>
+          <dt>Both Twins make it</dt>
+          <dd className="text-right font-bold text-gold">+{SCORING.TWINS_WIN} each</dd>
         </dl>
       </div>
     </div>

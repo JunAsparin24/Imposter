@@ -35,6 +35,7 @@ export const schemas = {
   empty,
   kick: z.object({ playerId: id }),
   ready: z.object({ ready: z.boolean() }),
+  setAvatar: z.object({ avatar }),
   phaseSeq: z.object({ phaseSeq }),
   advanceTurn: z.object({ turnIndex: z.number().int().min(0).max(MAX_PLAYERS) }),
   discussion: z.object({ action: z.enum(['pause', 'resume', 'extend']), phaseSeq }),
@@ -48,7 +49,7 @@ export const schemas = {
     lines: z.array(z.string().max(200)).max(CUSTOM_PACK.MAX_WORDS * 2),
   }),
   locked: z.object({ locked: z.boolean() }),
-  power: z.object({ action: z.enum(['INVESTIGATE', 'SKIP_TURN', 'CUT_DISCUSSION', 'PROTECT']), targetId: id.optional(), phaseSeq }),
+  power: z.object({ action: z.enum(['INVESTIGATE', 'SKIP_TURN', 'CUT_DISCUSSION', 'PROTECT', 'GUESS_WORD']), targetId: id.optional(), guess: z.string().trim().min(1).max(40).optional(), phaseSeq }),
   settings: z.object({
     settings: z
       .object({
@@ -70,7 +71,7 @@ export const schemas = {
         allowRepeatWords: z.boolean(),
         totalMatches: z.number().int().min(0).max(50),
         maxPlayers: z.number().int().min(MIN_PLAYERS).max(MAX_PLAYERS),
-        specialRoles: z.array(z.enum(['JESTER', 'DETECTIVE', 'SABOTEUR', 'MAYOR', 'BODYGUARD'])).max(8),
+        specialRoles: z.array(z.enum(['JESTER', 'EXECUTIONER', 'DRIFTER', 'TWINS', 'DETECTIVE', 'SABOTEUR', 'MAYOR', 'BODYGUARD'])).max(12),
       })
       .partial()
       .strip(),

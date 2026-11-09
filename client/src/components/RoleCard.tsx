@@ -62,7 +62,9 @@ export function RoleCard({ priv, compact = false }: { priv: PrivatePlayerState; 
     ? 'border-grinch/60 bg-gradient-to-b from-grinch-deep to-night-900 shadow-glow-red'
     : isElf
       ? 'border-elf/60 bg-gradient-to-b from-elf-deep to-night-900 shadow-glow-green'
-      : 'border-white/10 bg-night-800';
+      : priv.role === 'JESTER' || priv.role === 'EXECUTIONER' || priv.role === 'DRIFTER'
+        ? 'border-gold/60 bg-gradient-to-b from-gold/15 to-night-900 shadow-glow-gold'
+        : 'border-white/10 bg-night-800';
 
   return (
     <div className="w-full">
@@ -153,6 +155,24 @@ function TeamBox({ priv }: { priv: PrivatePlayerState }) {
   );
 }
 
+/** Twins: who your twin is. */
+function TwinBox({ priv }: { priv: PrivatePlayerState }) {
+  const { state } = useGame();
+  if (!priv.twinId) return null;
+  const twin = state?.room.players.find((p) => p.id === priv.twinId);
+  return (
+    <div className="w-full rounded-2xl bg-gold/10 px-4 py-3">
+      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-gold/80">Your twin</p>
+      <p className="mt-1 flex items-center justify-center gap-1.5 text-lg font-bold text-gold">
+        <AvatarImg id={twin?.avatar ?? ''} size={22} /> {twin?.name ?? 'Someone'}
+      </p>
+      <p className="mt-0.5 text-xs text-night-300">
+        You don't know their team. If either of you is voted out, the other leaves too. Both make it to the end: +2 each.
+      </p>
+    </div>
+  );
+}
+
 /** The player's extra power (Detective, Saboteur, Mayor), shown under their role. */
 function PowerBox({ priv }: { priv: PrivatePlayerState }) {
   if (!priv.power) return null;
@@ -185,7 +205,50 @@ function RoleContent({ priv }: { priv: PrivatePlayerState }) {
               ? 'Chaos: there might be several Imposters, or none at all.'
               : 'Give a one-word clue without giving the word away.'}
         </p>
+        <TwinBox priv={priv} />
         <PowerBox priv={priv} />
+      </>
+    );
+  }
+  if (priv.role === 'EXECUTIONER') {
+    const target = state?.room.players.find((p) => p.id === priv.executionerTargetId);
+    return (
+      <>
+        <p className="label !text-gold">Your secret role</p>
+        <h2 className="heading text-[clamp(1.9rem,9vw,2.6rem)] text-gold">Executioner</h2>
+        <div className="mt-2 w-full rounded-2xl bg-black/30 px-4 py-3">
+          <p className="label">The secret word</p>
+          <p className="heading mt-1 break-words text-[clamp(1.6rem,8.5vw,2.4rem)] text-snow">{priv.word}</p>
+          {priv.categoryName && <p className="mt-1.5 text-xs font-semibold text-night-300">{priv.categoryName}</p>}
+        </div>
+        <div className="w-full rounded-2xl bg-gold/10 px-4 py-3">
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-gold/80">Your target</p>
+          <p className="mt-1 flex items-center justify-center gap-1.5 text-xl font-bold text-gold">
+            <AvatarImg id={target?.avatar ?? ''} size={24} /> {target?.name ?? 'Someone'}
+          </p>
+          <p className="mt-1 text-xs text-night-300">
+            They're an Innocent. Get the group to vote them out and you win, whoever wins the match. You're on nobody's team.
+          </p>
+        </div>
+      </>
+    );
+  }
+  if (priv.role === 'DRIFTER') {
+    return (
+      <>
+        <p className="label !text-gold">Your secret role</p>
+        <h2 className="heading text-[clamp(1.9rem,9vw,2.6rem)] text-gold">Drifter</h2>
+        <div className="mt-2 w-full rounded-2xl bg-black/30 px-4 py-3">
+          <p className="label">Secret word</p>
+          <p className="heading mt-1 text-3xl text-gold">???</p>
+          <p className="mt-1 text-xs text-night-300">No word and no hint, but you're not an Imposter.</p>
+        </div>
+        <div className="w-full rounded-2xl bg-gold/10 px-4 py-3">
+          <p className="text-base font-bold text-gold">Work out the word from the clues.</p>
+          <p className="mt-1 text-xs text-night-300">
+            Once per match, type your guess with the Power button at the top. Get it right and you win, whoever wins the match.
+          </p>
+        </div>
       </>
     );
   }
@@ -233,6 +296,7 @@ function RoleContent({ priv }: { priv: PrivatePlayerState }) {
         <p className="max-w-[18rem] text-sm text-snow/80">
           {priv.hint ? 'Blend in. Listen closely to everyone\'s clues.' : 'No hint this time. Blend in and listen closely.'}
         </p>
+        <TwinBox priv={priv} />
         <PowerBox priv={priv} />
       </>
     );

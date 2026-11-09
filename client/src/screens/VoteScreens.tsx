@@ -7,7 +7,7 @@ import { ActionBar, Button, ConfirmButton } from '../components/ui';
 import { play, vibrate } from '../lib/sound';
 import { useFinalSecondsTick } from '../lib/hooks';
 import { formatSeconds, useCountdown } from '../lib/useCountdown';
-import { roleText } from '../lib/roles';
+import { isNeutral, roleName, roleText } from '../lib/roles';
 import { useRoom } from '../state/GameProvider';
 import { EliminatedNotice, PhaseTitle } from './RoundScreens';
 
@@ -224,6 +224,11 @@ export function VoteResultsScreen() {
             {r.playerIds.map((id) => (
               <OutCard key={id} player={playerById(id)} role={revealed ? r.roles[id] ?? null : null} />
             ))}
+            {r.twinOutId && (
+              <p className="text-center text-sm font-semibold text-gold">
+                {playerById(r.twinOutId)?.name ?? 'Someone'} was {playerById(r.playerIds[0])?.name ?? 'their'}'s twin, so they left too.
+              </p>
+            )}
             {revealed && pendingFinalGuess && (
               <p className="text-center text-sm font-semibold text-gold">…but they get one last chance to say the secret word!</p>
             )}
@@ -300,7 +305,7 @@ export function VoteResultsScreen() {
 /** The voted-out player: just their name at first, then the card flips to show the role. */
 function OutCard({ player, role }: { player: PublicPlayer | undefined; role: Role | null }) {
   const imposter = role === 'GRINCH';
-  const jester = role === 'JESTER';
+  const jester = isNeutral(role);
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.6 }}
@@ -332,7 +337,7 @@ function OutCard({ player, role }: { player: PublicPlayer | undefined; role: Rol
             transition={{ delay: 0.3, type: 'spring', damping: 9 }}
             className={`heading text-[clamp(1.4rem,7vw,2rem)] ${roleText(role)}`}
           >
-            {imposter ? 'was an Imposter!' : jester ? 'was the Jester! They wanted this.' : 'was innocent.'}
+            {imposter ? 'was an Imposter!' : role === 'JESTER' ? 'was the Jester! They wanted this.' : jester ? `was the ${roleName(role)}.` : 'was innocent.'}
           </motion.p>
         ) : (
           <motion.p

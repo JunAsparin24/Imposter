@@ -703,6 +703,21 @@ describe('jester', () => {
   });
 });
 
+describe('changing character', () => {
+  it('works in the lobby, only to a free character, and not mid-match', () => {
+    const t = makeRoom(4);
+    const [a, b] = t.ids;
+    const bAvatar = t.room.players.get(b)!.avatar;
+    expectError(() => t.room.setAvatar(a, bAvatar), 'AVATAR_TAKEN');
+    const free = AVATARS.find((x) => !t.room.takenAvatars().includes(x))!;
+    t.room.setAvatar(a, free);
+    expect(t.room.players.get(a)!.avatar).toBe(free);
+    startToClues(t);
+    const free2 = AVATARS.find((x) => !t.room.takenAvatars().includes(x))!;
+    expectError(() => t.room.setAvatar(a, free2), 'WRONG_PHASE');
+  });
+});
+
 describe('powers: detective, saboteur, mayor', () => {
   const holder = (t: ReturnType<typeof makeRoom>, power: string) => [...t.room.match!.powers].find(([, p]) => p === power)?.[0];
 
@@ -800,6 +815,91 @@ describe('powers: detective, saboteur, mayor', () => {
     toVoting(t);
     everyoneVotes(t, target);
     expect(t.room.publicState().match!.lastResult!.kind).toBe('ELIMINATED');
+  });
+
+  it('the executioner knows the word and wins when their target is voted out', () => {
+    const t = makeRoom(7, { specialRoles: ['EXECUTIONER'], grinchCount: 1, votingSystem: 'ELIMINATION', finalGuessEnabled: false, allowSkipVote: true });
+    startToClues(t);
+    const m = t.room.match!;
+    const exec = [...m.roles].find(([, r]) => r === 'EXECUTIONER')![0];
+    const target = m.executionerTargetId!;
+    expect(m.roles.get(target)).toBe('ELF');
+    const p = t.room.privateState(exec);
+    expect(p.word).toBe(m.word.word);
+    expect(p.executionerTargetId).toBe(target);
+    expect(t.room.privateState(target).executionerTargetId).toBeNull();
+    toVoting(t);
+    everyoneVotes(t, target);
+    continueResults(t);
+    toVoting(t);
+    everyoneVotes(t, grinches(t)[0]);
+    continueResults(t);
+    const res = t.room.match!.results!;
+    expect(res.winner).toBe('ELVES');
+    expect(res.bonusWins).toEqual([{ kind: 'EXECUTIONER', playerIds: [exec] }]);
+    expect(res.pointsEarned[exec]).toBe(SCORING.EXECUTIONER_WIN);
+  });
+
+  it('the drifter gets no word or hint and has one secret guess', () => {
+    const t = makeRoom(7, { specialRoles: ['DRIFTER'], grinchCount: 1, votingSystem: 'ELIMINATION', finalGuessEnabled: false });
+    startToClues(t);
+    const m = t.room.match!;
+    const drifter = [...m.roles].find(([, r]) => r === 'DRIFTER')![0];
+    const p = t.room.privateState(drifter);
+    expect(p.word).toBeNull();
+    expect(p.hint).toBeNull();
+    expect(p.teammates).toEqual([]);
+    expect(p.powerActions).toEqual(['GUESS_WORD']);
+    t.room.usePower(drifter, 'GUESS_WORD', null, t.room.phaseSeq, `  ${m.word.word.toUpperCase()} `);
+    expect(t.room.privateState(drifter).drifterGuess?.correct).toBe(true);
+    expectError(() => t.room.usePower(drifter, 'GUESS_WORD', null, t.room.phaseSeq, 'again'), 'NOT_ALLOWED');
+    toVoting(t);
+    everyoneVotes(t, grinches(t)[0]);
+    continueResults(t);
+    const res = t.room.match!.results!;
+    expect(res.bonusWins).toEqual([{ kind: 'DRIFTER', playerIds: [drifter] }]);
+    expect(res.pointsEarned[drifter]).toBe(SCORING.DRIFTER_WIN);
+  });
+
+  it('a wrong drifter guess wins nothing', () => {
+    const t = makeRoom(7, { specialRoles: ['DRIFTER'], grinchCount: 1, finalGuessEnabled: false });
+    startToClues(t);
+    const drifter = [...t.room.match!.roles].find(([, r]) => r === 'DRIFTER')![0];
+    t.room.usePower(drifter, 'GUESS_WORD', null, t.room.phaseSeq, 'zzzz');
+    expect(t.room.privateState(drifter).drifterGuess).toEqual({ guess: 'zzzz', correct: false });
+    expect(t.room.privateState(drifter).powerActions).toEqual([]);
+  });
+
+  it('twins leave together, and both surviving earns a bonus', () => {
+    const t = makeRoom(8, { specialRoles: ['TWINS'], grinchCount: 1, votingSystem: 'ELIMINATION', finalGuessEnabled: false });
+    startToClues(t);
+    const [a, b] = t.room.match!.twinIds;
+    expect(a && b).toBeTruthy();
+    expect(t.room.privateState(a).twinId).toBe(b);
+    expect(t.room.privateState(b).twinId).toBe(a);
+    // Vote out an innocent twin whose partner is also innocent? Pick whichever twin is an Innocent.
+    const innocentTwin = t.room.match!.roles.get(a) === 'ELF' ? a : b;
+    const partner = innocentTwin === a ? b : a;
+    toVoting(t);
+    everyoneVotes(t, innocentTwin);
+    const r = t.room.publicState().match!.lastResult!;
+    expect(r.playerIds).toEqual([innocentTwin, partner]);
+    expect(r.twinOutId).toBe(partner);
+    expect(t.room.aliveIds()).not.toContain(partner);
+  });
+
+  it('twins who both make it get the bonus', () => {
+    const t = makeRoom(8, { specialRoles: ['TWINS'], grinchCount: 1, votingSystem: 'ELIMINATION', finalGuessEnabled: false });
+    startToClues(t);
+    const twins = t.room.match!.twinIds;
+    const g = grinches(t)[0];
+    if (twins.includes(g)) return; // an Imposter twin would leave with the vote below
+    toVoting(t);
+    everyoneVotes(t, g);
+    continueResults(t);
+    const res = t.room.match!.results!;
+    expect(res.bonusWins).toContainEqual({ kind: 'TWINS', playerIds: twins });
+    for (const id of twins) expect(res.pointBreakdown[id]).toContain(`+${SCORING.TWINS_WIN} Both Twins made it to the end`);
   });
 
   it('powers are not dealt below 5 players', () => {

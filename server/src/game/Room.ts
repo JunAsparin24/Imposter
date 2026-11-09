@@ -16,6 +16,7 @@ import {
   type DiscussionAction,
   type ErrorCode,
   type GameMode,
+  type BonusWin,
   type Power,
   type PowerAction,
   type SabotageNews,
@@ -140,6 +141,12 @@ interface Match {
   powersUsed: Set<string>;
   /** Detective's private result. */
   detectiveResult: { targetId: string; isImposter: boolean } | null;
+  /** Executioner: who they need voted out. */
+  executionerTargetId: string | null;
+  /** Twins: two linked players. */
+  twinIds: string[];
+  /** Drifter's one guess at the word. */
+  drifterGuess: { guess: string; correct: boolean } | null;
   /** Bodyguard: who is protected, and for which round. */
   protection: { targetId: string; round: number } | null;
   /** Latest public sabotage news. */
@@ -327,6 +334,19 @@ export class Room {
     p.ready = ready;
   }
 
+  /** Swap characters in the lobby, as long as nobody else has the new one. */
+  setAvatar(playerId: string, avatar: string): void {
+    if (this.phase !== 'LOBBY' && this.phase !== 'SCOREBOARD') {
+      throw new GameError('WRONG_PHASE', 'You can only change your character between matches.');
+    }
+    const p = this.requirePlayer(playerId);
+    if (p.avatar === avatar) return;
+    if (this.activePlayers().some((o) => o.id !== playerId && o.avatar === avatar)) {
+      throw new GameError('AVATAR_TAKEN', 'Someone already has that character. Pick another one.');
+    }
+    p.avatar = avatar;
+  }
+
   kick(actorId: string, targetId: string): void {
     this.requireHost(actorId);
     if (actorId === targetId) throw new GameError('NOT_ALLOWED', "You can't kick yourself. Use Leave instead.");
@@ -495,6 +515,32 @@ export class Room {
       roles.set(jesterId, 'JESTER');
     }
 
+    // Neutral roles come out of the Innocents, always leaving at least 2 plain Innocents.
+    const plainElves = () => ids.filter((id) => roles.get(id) === 'ELF');
+    const bigEnough = !practice && ids.length >= 5;
+    let executionerTargetId: string | null = null;
+    if (bigEnough && settings.specialRoles.includes('EXECUTIONER') && plainElves().length >= 3) {
+      const pool = plainElves();
+      const exec = pool[this.deps.rng.int(pool.length)];
+      roles.set(exec, 'EXECUTIONER');
+      const targets = plainElves();
+      executionerTargetId = targets[this.deps.rng.int(targets.length)];
+    }
+    if (bigEnough && settings.specialRoles.includes('DRIFTER') && plainElves().length >= 3) {
+      const pool = plainElves().filter((id) => id !== executionerTargetId);
+      if (pool.length > 0) roles.set(pool[this.deps.rng.int(pool.length)], 'DRIFTER');
+    }
+    // Twins: one Innocent plus anyone else on a real team (could be an Imposter).
+    let twinIds: string[] = [];
+    if (bigEnough && settings.specialRoles.includes('TWINS')) {
+      const elvesPool = plainElves();
+      if (elvesPool.length > 0) {
+        const a = elvesPool[this.deps.rng.int(elvesPool.length)];
+        const others = ids.filter((id) => id !== a && (roles.get(id) === 'ELF' || roles.get(id) === 'GRINCH'));
+        if (others.length > 0) twinIds = [a, others[this.deps.rng.int(others.length)]];
+      }
+    }
+
     // Powers: Detective and Mayor go to plain Innocents, the Saboteur to an Imposter.
     const powers = new Map<string, Power>();
     if (!practice && ids.length >= 5) {
@@ -540,6 +586,9 @@ export class Room {
       powers,
       powersUsed: new Set(),
       detectiveResult: null,
+      executionerTargetId,
+      twinIds,
+      drifterGuess: null,
       protection: null,
       sabotage: null,
       forcedVoteAt: null,
@@ -641,6 +690,7 @@ export class Room {
     if (!m || m.results || !this.isAlive(playerId) || m.powersUsed.has(playerId)) return [];
     const power = m.powers.get(playerId);
     if (power === 'DETECTIVE' && (this.phase === 'CLUE' || this.phase === 'DISCUSSION')) return ['INVESTIGATE'];
+    if (m.roles.get(playerId) === 'DRIFTER' && (this.phase === 'CLUE' || this.phase === 'DISCUSSION' || this.phase === 'VOTING')) return ['GUESS_WORD'];
     if (power === 'BODYGUARD' && (this.phase === 'CLUE' || this.phase === 'DISCUSSION' || this.phase === 'VOTING')) return ['PROTECT'];
     if (power === 'SABOTEUR') {
       const speaker = this.currentSpeakerId();
@@ -651,7 +701,7 @@ export class Room {
   }
 
   /** Detective's check or Saboteur's sabotage. Once per match, checked on the server. */
-  usePower(actorId: string, action: PowerAction, targetId: string | null, phaseSeq: number): void {
+  usePower(actorId: string, action: PowerAction, targetId: string | null, phaseSeq: number, guess: string | null = null): void {
     const m = this.requireMatch();
     if (phaseSeq !== this.phaseSeq) throw new GameError('STALE_ACTION', 'The game has moved on.');
     if (!this.availablePowerActions(actorId).includes(action)) {
@@ -660,6 +710,13 @@ export class Room {
     if (action === 'INVESTIGATE') {
       if (!targetId || targetId === actorId || !this.isAlive(targetId)) throw new GameError('INVALID_INPUT', 'Pick another player who is still in the game.');
       m.detectiveResult = { targetId, isImposter: m.roles.get(targetId) === 'GRINCH' };
+    } else if (action === 'GUESS_WORD') {
+      const g = normalizeWord(guess ?? '');
+      if (!g) throw new GameError('INVALID_INPUT', 'Type a guess first.');
+      const w = normalizeWord(m.word.word);
+      // Forgive a plural or a missing plural ("cats" for "cat").
+      const correct = g === w || g === w + 's' || g + 's' === w || g === w + 'es' || g + 'es' === w;
+      m.drifterGuess = { guess: (guess ?? '').trim().slice(0, 40), correct };
     } else if (action === 'PROTECT') {
       if (!targetId || targetId === actorId || !this.isAlive(targetId)) throw new GameError('INVALID_INPUT', 'Pick another player who is still in the game.');
       m.protection = { targetId, round: m.round };
@@ -887,8 +944,16 @@ export class Room {
           // The Bodyguard's save: nobody leaves this time.
           result = { ...base, kind: 'PROTECTED', playerIds: [guarded] };
         } else if (m.settings.votingSystem === 'ELIMINATION') {
-          m.eliminatedIds.push(decided[0]);
-          result = { ...base, roles, kind: 'ELIMINATED', playerIds: [decided[0]] };
+          const out = decided[0];
+          m.eliminatedIds.push(out);
+          const twin = m.twinIds.includes(out) ? m.twinIds.find((id) => id !== out)! : null;
+          if (twin && this.isAlive(twin)) {
+            m.eliminatedIds.push(twin);
+            roles[twin] = m.roles.get(twin)!;
+            result = { ...base, roles, kind: 'ELIMINATED', playerIds: [out, twin], twinOutId: twin };
+          } else {
+            result = { ...base, roles, kind: 'ELIMINATED', playerIds: [out] };
+          }
         } else {
           result = { ...base, roles, kind: 'ACCUSED', playerIds: decided };
         }
@@ -1052,6 +1117,31 @@ export class Room {
       if (g.correct && stillHere(g.playerId)) add(g.playerId, SCORING.FINAL_GUESS_BONUS, 'Guessed the secret word');
     }
 
+    // Side wins: they come on top of whoever won the match.
+    const bonusWins: BonusWin[] = [];
+    const roleHolder = (r: Role) => m.participantIds.find((id) => m.roles.get(id) === r) ?? null;
+    const exec = roleHolder('EXECUTIONER');
+    const target = m.executionerTargetId;
+    const targetOut =
+      !!target &&
+      (m.eliminatedIds.includes(target) ||
+        m.voteHistory.some((v) => v.result?.kind === 'ACCUSED' && v.result.playerIds.includes(target)));
+    if (exec && targetOut && stillHere(exec)) {
+      add(exec, SCORING.EXECUTIONER_WIN, 'Got their target voted out');
+      bonusWins.push({ kind: 'EXECUTIONER', playerIds: [exec] });
+    }
+    const drifter = roleHolder('DRIFTER');
+    if (drifter && m.drifterGuess?.correct && stillHere(drifter)) {
+      add(drifter, SCORING.DRIFTER_WIN, 'Worked out the word as the Drifter');
+      bonusWins.push({ kind: 'DRIFTER', playerIds: [drifter] });
+    }
+    const accusedIds = new Set(m.voteHistory.flatMap((v) => (v.result?.kind === 'ACCUSED' ? v.result.playerIds : [])));
+    const madeIt = (id: string) => this.isAlive(id) && !accusedIds.has(id);
+    if (m.twinIds.length === 2 && m.twinIds.every(madeIt)) {
+      for (const id of m.twinIds) add(id, SCORING.TWINS_WIN, 'Both Twins made it to the end');
+      bonusWins.push({ kind: 'TWINS', playerIds: [...m.twinIds] });
+    }
+
     // Practice rounds: show who was who, but award nothing and record nothing.
     if (m.practice) {
       for (const k of Object.keys(points)) delete points[k];
@@ -1073,6 +1163,7 @@ export class Room {
         p.stats.grinchWins++;
       }
       if (winner === 'JESTER' && role === 'JESTER') p.stats.wins++;
+      if ((role === 'EXECUTIONER' || role === 'DRIFTER') && bonusWins.some((b) => b.playerIds.includes(id))) p.stats.wins++;
       if (m.eliminatedIds.includes(id)) p.stats.timesVotedOut++;
       p.stats.correctVotes += correctVotes[id] ?? 0;
       if (m.allGuesses.some((g) => g.correct && g.playerId === id)) p.stats.correctGuesses++;
@@ -1108,6 +1199,10 @@ export class Room {
       pointBreakdown: breakdown,
       votes,
       guesses: m.allGuesses,
+      bonusWins,
+      executionerTargetId: m.executionerTargetId,
+      twinIds: m.twinIds,
+      drifterGuess: m.drifterGuess,
       practice: m.practice,
     };
     if (!m.practice) this.history.unshift({
@@ -1313,7 +1408,13 @@ export class Room {
         finalGuessEnabled: m.settings.finalGuessEnabled,
         allowSkipVote: m.settings.allowSkipVote,
         practice: m.practice,
-        specialRoles: [...(m.jesterId ? (['JESTER'] as const) : []), ...new Set(m.powers.values())],
+        specialRoles: [
+          ...(m.jesterId ? (['JESTER'] as const) : []),
+          ...(m.executionerTargetId ? (['EXECUTIONER'] as const) : []),
+          ...([...m.roles.values()].includes('DRIFTER') ? (['DRIFTER'] as const) : []),
+          ...(m.twinIds.length ? (['TWINS'] as const) : []),
+          ...new Set(m.powers.values()),
+        ],
         participantIds: [...m.participantIds],
         acknowledgedIds: [...m.acknowledged],
         speakingOrder: [...m.speakingOrder],
@@ -1381,6 +1482,9 @@ export class Room {
       powerActions: [],
       detectiveResult: null,
       protection: null,
+      executionerTargetId: null,
+      twinId: null,
+      drifterGuess: null,
       // The host wrote these words, so sending them back to the host leaks nothing new.
       customPackLines:
         playerId === this.hostId && this.customPack
@@ -1402,11 +1506,18 @@ export class Room {
       if (power === 'DETECTIVE') out.detectiveResult = m.detectiveResult;
       if (power === 'BODYGUARD') out.protection = m.protection;
     }
-    if (role === 'ELF' || role === 'JESTER') {
+    if (role === 'DRIFTER') {
+      out.powerUsed = m.powersUsed.has(playerId);
+      out.powerActions = this.availablePowerActions(playerId);
+      out.drifterGuess = m.drifterGuess;
+    }
+    if (role === 'EXECUTIONER') out.executionerTargetId = m.executionerTargetId;
+    if (m.twinIds.includes(playerId)) out.twinId = m.twinIds.find((id) => id !== playerId)!;
+    if (role === 'ELF' || role === 'JESTER' || role === 'EXECUTIONER') {
       out.word = m.word.word;
       out.category = m.word.category === 'practice' ? null : m.word.category;
       out.categoryName = this.categoryLabel(m);
-    } else {
+    } else if (role === 'GRINCH') {
       if (m.settings.grinchHint && m.hintGiven) {
         // Every Imposter gets the SAME hint word (never the secret word itself).
         out.hint = m.word.hint || 'No hint for this one';

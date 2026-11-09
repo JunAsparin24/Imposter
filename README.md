@@ -39,6 +39,12 @@ never in practice rounds). Everyone can see which special roles are in play, but
 
 - **Jester** (4+ players): one non-Imposter knows the word but wins alone (+4) if the group votes them
   out, which ends the match. Otherwise the Jester loses.
+- **Executioner** (5+ players): on nobody's team. Knows the word and is secretly given one Innocent
+  as a target. Gets +3 if the group votes that player out at any point, whoever wins the match.
+- **Drifter** (5+ players): on nobody's team. Gets no word and no hint (and isn't an Imposter).
+  Once per match they secretly type a guess at the word; if it's right they get +3.
+- **Twins** (5+ players): two players on any team who know each other (they don't know each
+  other's team). If one is voted out, the other leaves too. +2 each if both make it to the end.
 - **Detective** (5+ players): an Innocent who, once per match (not per round), secretly checks one
   player during clues or discussion and learns whether they are an Imposter. Only they see the answer.
 - **Saboteur** (5+ players): an Imposter who, once per match, skips the current speaker's turn or

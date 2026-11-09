@@ -144,6 +144,27 @@ export const SPECIAL_ROLES: { id: import('./types').SpecialRole; name: string; d
     minPlayers: 4,
   },
   {
+    id: 'EXECUTIONER',
+    name: 'Executioner',
+    description:
+      'On nobody\'s team. Knows the word and is secretly given one Innocent as a target. Wins (+3) if the group votes that player out at any point.',
+    minPlayers: 5,
+  },
+  {
+    id: 'DRIFTER',
+    name: 'Drifter',
+    description:
+      'On nobody\'s team. Gets no word and no hint, but is not an Imposter. Wins (+3) by secretly typing the right word once per match.',
+    minPlayers: 5,
+  },
+  {
+    id: 'TWINS',
+    name: 'Twins',
+    description:
+      'Two players, on any team, who know each other. If one is voted out, the other leaves too. Both get +2 if they both make it to the end.',
+    minPlayers: 5,
+  },
+  {
     id: 'DETECTIVE',
     name: 'Detective',
     description:
@@ -209,6 +230,9 @@ export const SCORING = {
   CORRECT_VOTE: 1,
   FINAL_GUESS_BONUS: 3,
   JESTER_WIN: 4,
+  EXECUTIONER_WIN: 3,
+  DRIFTER_WIN: 3,
+  TWINS_WIN: 2,
 } as const;
 
 export const TIMING = {

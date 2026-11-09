@@ -26,13 +26,13 @@ export type Phase =
 export type GameMode = 'CLASSIC' | 'CHAOS';
 export type VotingSystem = 'ELIMINATION' | 'SINGLE';
 /** ELF = Innocent, GRINCH = Imposter, JESTER = wants to get voted out (knows the word, plays alone). */
-export type Role = 'ELF' | 'GRINCH' | 'JESTER';
+export type Role = 'ELF' | 'GRINCH' | 'JESTER' | 'EXECUTIONER' | 'DRIFTER';
 
 /** Optional extra roles the host can switch on. */
-export type SpecialRole = 'JESTER' | 'DETECTIVE' | 'SABOTEUR' | 'MAYOR' | 'BODYGUARD';
+export type SpecialRole = 'JESTER' | 'EXECUTIONER' | 'DRIFTER' | 'TWINS' | 'DETECTIVE' | 'SABOTEUR' | 'MAYOR' | 'BODYGUARD';
 /** Powers sit on top of a normal team: Detective/Mayor are Innocents, Saboteur is an Imposter. */
 export type Power = 'DETECTIVE' | 'SABOTEUR' | 'MAYOR' | 'BODYGUARD';
-export type PowerAction = 'INVESTIGATE' | 'SKIP_TURN' | 'CUT_DISCUSSION' | 'PROTECT';
+export type PowerAction = 'INVESTIGATE' | 'SKIP_TURN' | 'CUT_DISCUSSION' | 'PROTECT' | 'GUESS_WORD';
 
 /** Public news of a sabotage (never says who did it). */
 export interface SabotageNews {
@@ -139,6 +139,14 @@ export interface VoteResult {
   roles: Record<string, Role>;
   tally: VoteTallyEntry[];
   isRevote: boolean;
+  /** Twins: the voted-out player's twin, who left with them (also in playerIds). */
+  twinOutId?: string | null;
+}
+
+/** A side win (on top of the main result) for a neutral role or the Twins. */
+export interface BonusWin {
+  kind: 'EXECUTIONER' | 'DRIFTER' | 'TWINS';
+  playerIds: string[];
 }
 
 export interface PublicVoteSession {
@@ -219,6 +227,14 @@ export interface MatchResults {
   pointBreakdown: Record<string, string[]>;
   votes: VoteHistoryEntry[];
   guesses: { playerId: string; correct: boolean }[];
+  /** Executioner / Drifter / Twins wins. */
+  bonusWins: BonusWin[];
+  /** Who the Executioner had to get voted out. */
+  executionerTargetId: string | null;
+  /** The Twins, if there were any. */
+  twinIds: string[];
+  /** The Drifter's typed guess, if they made one. */
+  drifterGuess: { guess: string; correct: boolean } | null;
   /** Practice rounds award no points and don't count towards stats. */
   practice: boolean;
 }
@@ -316,6 +332,12 @@ export interface PrivatePlayerState {
   detectiveResult: { targetId: string; isImposter: boolean } | null;
   /** Bodyguard only: who I protected, and in which round. */
   protection: { targetId: string; round: number } | null;
+  /** Executioner only: the player I need voted out. */
+  executionerTargetId: string | null;
+  /** Twins only: my twin. */
+  twinId: string | null;
+  /** Drifter only: my one guess at the word. */
+  drifterGuess: { guess: string; correct: boolean } | null;
   /** Host only: the room's custom word pack, one entry per line ("Word | hint"). */
   customPackLines: string[] | null;
 }
@@ -389,6 +411,7 @@ export interface ClientToServerEvents {
   'room:kick': (p: { playerId: string }, ack: AckFn) => void;
   'room:updateSettings': (p: { settings: Partial<GameSettings> }, ack: AckFn) => void;
   'player:ready': (p: { ready: boolean }, ack: AckFn) => void;
+  'player:setAvatar': (p: { avatar: string }, ack: AckFn) => void;
   'game:start': (p: { practice?: boolean }, ack: AckFn) => void;
   'game:nextMatch': (p: Record<string, never>, ack: AckFn) => void;
   'game:roleAcknowledged': (p: Record<string, never>, ack: AckFn) => void;
@@ -398,7 +421,7 @@ export interface ClientToServerEvents {
   'game:startVoting': (p: { phaseSeq: number }, ack: AckFn) => void;
   'game:submitVote': (p: { voteId: string; picks: string[]; skip: boolean }, ack: AckFn) => void;
   'game:closeVoting': (p: { phaseSeq: number }, ack: AckFn) => void;
-  'game:usePower': (p: { action: PowerAction; targetId?: string; phaseSeq: number }, ack: AckFn) => void;
+  'game:usePower': (p: { action: PowerAction; targetId?: string; guess?: string; phaseSeq: number }, ack: AckFn) => void;
   'game:revealResult': (p: { phaseSeq: number }, ack: AckFn) => void;
   'game:continue': (p: { phaseSeq: number }, ack: AckFn) => void;
   'game:judgeGuess': (p: { correct: boolean; phaseSeq: number }, ack: AckFn) => void;

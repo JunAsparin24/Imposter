@@ -4,7 +4,7 @@ import type { Phase } from '@imposter/shared';
 import { RoomHeader } from '../components/RoomChrome';
 import { Spinner } from '../components/ui';
 import { useWakeLock } from '../lib/hooks';
-import { wonWith } from '../lib/roles';
+import { roleWithArticle, wonWith } from '../lib/roles';
 import { playMusic, stopMusic } from '../lib/music';
 import { play, vibrate } from '../lib/sound';
 import { FrozenStateContext, useGame, useRoom } from '../state/GameProvider';
@@ -140,7 +140,7 @@ function useAnnouncement(): string {
       if (!r) return '';
       if (r.kind === 'ELIMINATED' || r.kind === 'ACCUSED') {
         return r.playerIds
-          .map((id) => `${playerById(id)?.name ?? 'Someone'} was ${r.roles[id] === 'GRINCH' ? 'an Imposter' : r.roles[id] === 'JESTER' ? 'the Jester' : 'an Innocent'}.`)
+          .map((id) => `${playerById(id)?.name ?? 'Someone'} was ${roleWithArticle(r.roles[id])}.`)
           .join(' ');
       }
       return r.kind === 'TIE' ? 'It is a tie. A revote is coming.' : 'Nobody was eliminated.';

@@ -6,7 +6,7 @@ import { Avatar, AvatarImg, Confetti, CountUp } from '../components/decor';
 import { powerName } from '../components/PowerSheet';
 import { SettingsSheet } from '../components/SettingsSheet';
 import { ActionBar, Button, ConfirmButton, SectionTitle, Sheet } from '../components/ui';
-import { wonWith } from '../lib/roles';
+import { isNeutral, roleName, wonWith } from '../lib/roles';
 import { useRoom } from '../state/GameProvider';
 
 const REASONS: Record<WinReason, string> = {
@@ -30,9 +30,10 @@ export function RoundResultsScreen() {
   const nobody = res.winner === 'NONE';
   const jesterWon = res.winner === 'JESTER';
   // The room screen (no role) celebrates every win except "nobody".
-  const iWon = myResult ? wonWith(myResult.role, res.winner) : !nobody;
+  const myBonus = myResult ? res.bonusWins.some((b) => b.playerIds.includes(myResult.id)) : false;
+  const iWon = myResult ? wonWith(myResult.role, res.winner) || myBonus : !nobody;
   const grinches = res.players.filter((p) => p.role === 'GRINCH');
-  const jesters = res.players.filter((p) => p.role === 'JESTER');
+  const neutrals = res.players.filter((p) => isNeutral(p.role));
   const elves = res.players.filter((p) => p.role === 'ELF');
   const earned = res.players
     .map((p) => ({ ...p, pts: res.pointsEarned[p.id] ?? 0, why: res.pointBreakdown[p.id] ?? [] }))
@@ -63,7 +64,7 @@ export function RoundResultsScreen() {
         {res.practice && <p className="mt-2 text-xs font-bold uppercase tracking-widest text-gold">Practice round · no points</p>}
         {myResult && (
           <p className={`mt-3 text-sm font-bold ${iWon ? 'text-gold' : 'text-night-300'}`}>
-            {nobody ? 'Everyone loses this one.' : jesterWon ? (iWon ? 'You fooled everyone!' : 'Everyone else loses this one.') : iWon ? 'Your team won!' : 'Your team lost this one.'}
+            {myBonus && !wonWith(myResult.role, res.winner) ? 'You pulled off your side win!' : nobody ? 'Everyone loses this one.' : jesterWon ? (iWon ? 'You fooled everyone!' : 'Everyone else loses this one.') : iWon ? 'Your team won!' : 'Your team lost this one.'}
           </p>
         )}
       </motion.div>
@@ -75,10 +76,12 @@ export function RoundResultsScreen() {
       </div>
 
       <div className="grid gap-3 min-[460px]:grid-cols-2">
-        <RoleList title={`Imposter${grinches.length === 1 ? '' : 's'}`} tone="grinch" players={grinches} />
-        <RoleList title="Innocents" tone="elf" players={elves} />
-        {jesters.length > 0 && <RoleList title="Jester" tone="jester" players={jesters} />}
+        <RoleList title={`Imposter${grinches.length === 1 ? '' : 's'}`} tone="grinch" players={grinches} twinIds={res.twinIds} />
+        <RoleList title="Innocents" tone="elf" players={elves} twinIds={res.twinIds} />
+        {neutrals.length > 0 && <RoleList title="Nobody's team" tone="jester" players={neutrals} twinIds={res.twinIds} showRole />}
       </div>
+
+      <SideWins res={res} nameOf={nameOf} />
 
       {!res.practice && <section className="card p-4">
         <SectionTitle>Points this match</SectionTitle>
@@ -111,7 +114,61 @@ export function RoundResultsScreen() {
   );
 }
 
-function RoleList({ title, tone, players }: { title: string; tone: 'grinch' | 'elf' | 'jester'; players: MatchResults['players'] }) {
+/** Executioner, Drifter and Twins results, shown under the main result. */
+function SideWins({ res, nameOf }: { res: MatchResults; nameOf: (id: string) => string }) {
+  const exec = res.players.find((p) => p.role === 'EXECUTIONER');
+  const drifter = res.players.find((p) => p.role === 'DRIFTER');
+  const won = (kind: string) => res.bonusWins.some((b) => b.kind === kind);
+  const lines: { text: string; win: boolean }[] = [];
+  if (exec && res.executionerTargetId) {
+    lines.push({
+      win: won('EXECUTIONER'),
+      text: won('EXECUTIONER')
+        ? `${exec.name} was the Executioner and got ${nameOf(res.executionerTargetId)} voted out.`
+        : `${exec.name} was the Executioner, but ${nameOf(res.executionerTargetId)} survived.`,
+    });
+  }
+  if (drifter) {
+    const g = res.drifterGuess;
+    lines.push({
+      win: won('DRIFTER'),
+      text: g
+        ? `${drifter.name} was the Drifter and guessed "${g.guess}"${g.correct ? '. Correct!' : '. Wrong.'}`
+        : `${drifter.name} was the Drifter and never guessed.`,
+    });
+  }
+  if (res.twinIds.length === 2) {
+    const names = res.twinIds.map(nameOf).join(' and ');
+    lines.push({ win: won('TWINS'), text: won('TWINS') ? `${names} were the Twins and both made it.` : `${names} were the Twins, but didn't both make it.` });
+  }
+  if (lines.length === 0) return null;
+  return (
+    <section className="card p-4">
+      <SectionTitle>Side wins</SectionTitle>
+      <ul className="space-y-1.5 text-sm">
+        {lines.map((l) => (
+          <li key={l.text} className={l.win ? 'font-semibold text-gold' : 'text-night-300'}>
+            {l.text}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function RoleList({
+  title,
+  tone,
+  players,
+  twinIds = [],
+  showRole = false,
+}: {
+  title: string;
+  tone: 'grinch' | 'elf' | 'jester';
+  players: MatchResults['players'];
+  twinIds?: string[];
+  showRole?: boolean;
+}) {
   const box = { grinch: 'border-grinch/30 bg-grinch/[0.06]', elf: 'border-elf/30 bg-elf/[0.06]', jester: 'border-gold/30 bg-gold/[0.06]' }[tone];
   const text = { grinch: 'text-grinch', elf: 'text-elf', jester: 'text-gold' }[tone];
   return (
@@ -125,7 +182,9 @@ function RoleList({ title, tone, players }: { title: string; tone: 'grinch' | 'e
           <li key={p.id} className="flex items-center gap-2 text-sm">
             <AvatarImg id={p.avatar} size={20} />
             <span className={`truncate font-semibold ${p.eliminated || p.left ? 'text-night-400' : ''}`}>{p.name}</span>
+            {showRole && <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gold">{roleName(p.role)}</span>}
             {p.power && <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gold">{powerName(p.power)}</span>}
+            {twinIds.includes(p.id) && <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gold">Twin</span>}
             {p.eliminated && <span className="text-xs text-night-400">· voted out</span>}
             {p.left && <span className="text-xs text-night-400">· left</span>}
           </li>

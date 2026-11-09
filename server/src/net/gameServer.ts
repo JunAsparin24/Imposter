@@ -300,6 +300,7 @@ export function createGameServer(opts: GameServerOptions) {
     );
     handle('room:setLocked', schemas.locked, ({ locked }) => act((room, id) => room.setLocked(id, locked)));
     handle('player:ready', schemas.ready, ({ ready }) => act((room, id) => room.setReady(id, ready)));
+    handle('player:setAvatar', schemas.setAvatar, ({ avatar }) => act((room, id) => room.setAvatar(id, avatar)));
     handle('game:start', schemas.start, ({ practice }) => act((room, id) => room.startMatch(id, !!practice)));
     handle('game:nextMatch', schemas.empty, () => act((room, id) => room.startMatch(id)));
     handle('game:roleAcknowledged', schemas.empty, () => act((room, id) => room.acknowledgeRole(id)));
@@ -315,8 +316,8 @@ export function createGameServer(opts: GameServerOptions) {
       act((room, id) => room.submitVote(id, voteId, picks, skip)),
     );
     handle('game:revealResult', schemas.phaseSeq, ({ phaseSeq }) => act((room, id) => room.revealResult(id, phaseSeq)));
-    handle('game:usePower', schemas.power, ({ action, targetId, phaseSeq }) =>
-      act((room, id) => room.usePower(id, action, targetId ?? null, phaseSeq)),
+    handle('game:usePower', schemas.power, ({ action, targetId, guess, phaseSeq }) =>
+      act((room, id) => room.usePower(id, action, targetId ?? null, phaseSeq, guess ?? null)),
     );
     handle('game:closeVoting', schemas.phaseSeq, ({ phaseSeq }) => act((room, id) => room.closeVoting(id, phaseSeq)));
     handle('game:continue', schemas.phaseSeq, ({ phaseSeq }) =>

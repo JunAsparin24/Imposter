@@ -1,5 +1,6 @@
-import { Eye, Gavel, Scissors, Shield, SkipForward } from 'lucide-react';
+import { Compass, Eye, Gavel, Scissors, Shield, SkipForward } from 'lucide-react';
 import { useState } from 'react';
+import type { PrivatePlayerState } from '@imposter/shared';
 import { SPECIAL_ROLES, TIMING } from '@imposter/shared';
 import { useRoom } from '../state/GameProvider';
 import { Avatar } from './decor';
@@ -10,6 +11,7 @@ export const POWER_INFO = {
   DETECTIVE: { title: 'Detective', rule: 'Once per match, during clues or discussion, secretly check if one player is an Imposter.' },
   SABOTEUR: { title: 'Saboteur', rule: "Once per match, skip someone's speaking turn or cut the discussion to 10 seconds." },
   BODYGUARD: { title: 'Bodyguard', rule: 'Once per match, secretly protect one player for this round. If the vote would remove them, nobody leaves.' },
+  DRIFTER: { title: 'Drifter', rule: 'Once per match, secretly type your guess at the word. Get it right and you win, whoever wins the match.' },
   MAYOR: { title: 'Mayor', rule: 'Your vote secretly counts twice. Nobody can tell, so nobody can prove who the Mayor is.' },
 } as const;
 
@@ -20,19 +22,21 @@ export const POWER_INFO = {
 export function PowerSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { room, priv, send, playerById, session } = useRoom();
   const [busy, setBusy] = useState(false);
+  const [guess, setGuess] = useState('');
   const m = room.match;
-  if (!priv.power || !m) return null;
-  const info = POWER_INFO[priv.power];
+  const kind = sheetKind(priv);
+  if (!kind || !m) return null;
+  const info = POWER_INFO[kind];
   const myId = session?.playerId;
   const targets = room.players.filter((p) => m.participantIds.includes(p.id) && p.status === 'ACTIVE' && p.id !== myId);
   const speaker = playerById(m.currentSpeakerId);
   const can = (a: string) => priv.powerActions.includes(a as never);
 
-  const use = async (action: 'INVESTIGATE' | 'SKIP_TURN' | 'CUT_DISCUSSION' | 'PROTECT', targetId?: string) => {
+  const use = async (action: 'INVESTIGATE' | 'SKIP_TURN' | 'CUT_DISCUSSION' | 'PROTECT' | 'GUESS_WORD', targetId?: string, text?: string) => {
     setBusy(true);
-    const res = await send('game:usePower', { action, targetId, phaseSeq: room.phaseSeq });
+    const res = await send('game:usePower', { action, targetId, guess: text, phaseSeq: room.phaseSeq });
     setBusy(false);
-    if (res.ok && action !== 'INVESTIGATE' && action !== 'PROTECT') onClose();
+    if (res.ok && action !== 'INVESTIGATE' && action !== 'PROTECT' && action !== 'GUESS_WORD') onClose();
   };
 
   const checked = priv.detectiveResult ? playerById(priv.detectiveResult.targetId) : null;
@@ -170,6 +174,48 @@ export function PowerSheet({ open, onClose }: { open: boolean; onClose: () => vo
           </>
         )}
 
+        {kind === 'DRIFTER' && (
+          <>
+            {priv.drifterGuess ? (
+              <div
+                className={`rounded-2xl border-2 px-4 py-5 text-center ${
+                  priv.drifterGuess.correct ? 'border-gold/60 bg-gold/10' : 'border-white/15 bg-white/[0.04]'
+                }`}
+              >
+                <p className="label">You guessed</p>
+                <p className="heading mt-1 break-words text-2xl">{priv.drifterGuess.guess}</p>
+                <p className={`heading mt-2 text-xl ${priv.drifterGuess.correct ? 'text-gold' : 'text-night-300'}`}>
+                  {priv.drifterGuess.correct ? 'Correct! You win this match.' : 'Not quite. That was your one guess.'}
+                </p>
+                <p className="mt-2 text-xs text-night-300">Nobody else knows. Keep playing it cool.</p>
+              </div>
+            ) : can('GUESS_WORD') ? (
+              <form
+                className="space-y-3"
+                // Submitting needs the confirm tap below, so Enter does nothing.
+                onSubmit={(e) => e.preventDefault()}
+              >
+                <label className="block">
+                  <span className="label">Your guess at the secret word</span>
+                  <input
+                    value={guess}
+                    onChange={(e) => setGuess(e.target.value.slice(0, 40))}
+                    placeholder="Type one word"
+                    autoComplete="off"
+                    className="mt-2 h-12 w-full rounded-2xl border border-white/10 bg-night-800 px-4 font-semibold placeholder:text-night-500 focus:border-gold focus:outline-none"
+                  />
+                </label>
+                <p className="text-xs text-night-400">One try only. Hide your screen while you type.</p>
+                <ConfirmButton block size="lg" variant="gold" loading={busy} disabled={!guess.trim()} confirmLabel="Lock it in? Tap again" onConfirm={() => { if (guess.trim()) void use('GUESS_WORD', undefined, guess.trim()); }}>
+                  Submit guess
+                </ConfirmButton>
+              </form>
+            ) : (
+              <p className="rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-night-300">You can guess during clues, discussion or voting, while you're still in the game.</p>
+            )}
+          </>
+        )}
+
         {priv.power === 'MAYOR' && (
           <p className="rounded-2xl bg-gold/10 px-4 py-3 text-sm text-gold">
             Nothing to tap: your votes already count twice. Claiming to be the Mayor proves nothing, since an Imposter could say it too.
@@ -186,6 +232,7 @@ export function PowerSheet({ open, onClose }: { open: boolean; onClose: () => vo
 
 /** Small icon for each power. */
 export function PowerIcon({ power, size = 16 }: { power: keyof typeof POWER_INFO; size?: number }) {
+  if (power === 'DRIFTER') return <Compass size={size} />;
   if (power === 'DETECTIVE') return <Eye size={size} />;
   if (power === 'SABOTEUR') return <Scissors size={size} />;
   if (power === 'BODYGUARD') return <Shield size={size} />;
@@ -193,3 +240,8 @@ export function PowerIcon({ power, size = 16 }: { power: keyof typeof POWER_INFO
 }
 
 export const powerName = (p: string) => SPECIAL_ROLES.find((r) => r.id === p)?.name ?? p;
+
+/** Which sheet the Power button opens: a power, or the Drifter's guess. */
+export function sheetKind(priv: PrivatePlayerState): keyof typeof POWER_INFO | null {
+  return priv.power ?? (priv.role === 'DRIFTER' ? 'DRIFTER' : null);
+}

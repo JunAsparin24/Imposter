@@ -1,10 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Copy, Crown, GraduationCap, Link2, Play, Settings2, Share2, UserX } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { MIN_PLAYERS, maxGrinchCount, resolveGrinchCount } from '@imposter/shared';
+import { AVATAR_LABELS, AVATARS, MIN_PLAYERS, maxGrinchCount, resolveGrinchCount } from '@imposter/shared';
 import { PlayerRow } from '../components/RoomChrome';
 import { SettingsSheet, settingsSummary } from '../components/SettingsSheet';
-import { ActionBar, Button, ConfirmButton, SectionTitle, Toggle } from '../components/ui';
+import { AvatarImg } from '../components/decor';
+import { ActionBar, Button, ConfirmButton, SectionTitle, Sheet, Toggle } from '../components/ui';
+import { loadProfile, saveProfile } from '../lib/storage';
 import { useRoom } from '../state/GameProvider';
 
 const isLocalhost = () => ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
@@ -94,10 +96,60 @@ export function InviteCard() {
   );
 }
 
+/** Pick a different character. Ones other players have are greyed out. */
+function AvatarSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { room, me, send } = useRoom();
+  const [busy, setBusy] = useState(false);
+  const taken = room.players.filter((p) => p.status !== 'LEFT' && p.id !== me?.id).map((p) => p.avatar);
+  const pick = async (a: string) => {
+    if (a === me?.avatar) return onClose();
+    setBusy(true);
+    const res = await send('player:setAvatar', { avatar: a });
+    setBusy(false);
+    if (res.ok) {
+      const profile = loadProfile();
+      if (profile) saveProfile({ ...profile, avatar: a });
+      onClose();
+    }
+  };
+  return (
+    <Sheet open={open} onClose={onClose} title="Change character">
+      <div className="grid grid-cols-5 gap-2">
+        {AVATARS.map((a) => {
+          const isTaken = taken.includes(a);
+          const mine = me?.avatar === a;
+          return (
+            <button
+              key={a}
+              type="button"
+              disabled={isTaken || busy}
+              onClick={() => void pick(a)}
+              aria-label={`${AVATAR_LABELS[a]}${isTaken ? ' (taken)' : mine ? ' (yours)' : ''}`}
+              aria-pressed={mine}
+              title={isTaken ? 'Someone already has this one' : AVATAR_LABELS[a]}
+              className={`relative grid aspect-square place-items-center rounded-2xl transition ${
+                isTaken
+                  ? 'cursor-not-allowed bg-white/[0.02] opacity-25 grayscale'
+                  : mine
+                    ? 'scale-105 bg-gold/15 ring-2 ring-gold'
+                    : 'bg-white/[0.04] hover:bg-white/[0.08]'
+              }`}
+            >
+              <AvatarImg id={a} size={64} className="max-h-[88%] max-w-[88%]" />
+              {isTaken && <span className="absolute bottom-1 text-[9px] font-bold uppercase tracking-wider text-night-300">Taken</span>}
+            </button>
+          );
+        })}
+      </div>
+    </Sheet>
+  );
+}
+
 export function Lobby() {
   const { room, me, isHost, send, session } = useRoom();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
   const players = room.players.filter((p) => p.status !== 'LEFT');
   const connected = players.filter((p) => p.connected);
   const readyCount = players.filter((p) => p.ready).length;
@@ -140,6 +192,11 @@ export function Lobby() {
                   sub={p.score > 0 ? <span>{p.score} pts</span> : undefined}
                   right={
                     <div className="flex items-center gap-1.5">
+                      {p.id === session?.playerId && (
+                        <Button size="sm" variant="ghost" className="!h-8 !px-2.5" onClick={() => setAvatarOpen(true)} aria-label="Change your character">
+                          <span className="text-xs">Change</span>
+                        </Button>
+                      )}
                       <span
                         className={`flex h-8 items-center gap-1 rounded-full px-2.5 text-xs font-bold ${
                           p.ready ? 'bg-elf/15 text-elf-light' : 'bg-white/[0.05] text-night-400'
@@ -251,6 +308,7 @@ export function Lobby() {
       </ActionBar>
 
       <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <AvatarSheet open={avatarOpen} onClose={() => setAvatarOpen(false)} />
     </div>
   );
 }
