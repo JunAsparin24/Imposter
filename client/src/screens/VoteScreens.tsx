@@ -7,6 +7,7 @@ import { ActionBar, Button, ConfirmButton } from '../components/ui';
 import { play, vibrate } from '../lib/sound';
 import { useFinalSecondsTick } from '../lib/hooks';
 import { formatSeconds, useCountdown } from '../lib/useCountdown';
+import { roleText } from '../lib/roles';
 import { useRoom } from '../state/GameProvider';
 import { EliminatedNotice, PhaseTitle } from './RoundScreens';
 
@@ -202,7 +203,7 @@ export function VoteResultsScreen() {
   useEffect(() => {
     if (revealed && !wasRevealed.current && isOut) {
       const roles = Object.values(r.roles);
-      if (roles.includes('GRINCH')) play('grinch');
+      if (roles.includes('GRINCH') || roles.includes('JESTER')) play('grinch');
       else play('elf');
     }
     wasRevealed.current = revealed;
@@ -299,6 +300,7 @@ export function VoteResultsScreen() {
 /** The voted-out player: just their name at first, then the card flips to show the role. */
 function OutCard({ player, role }: { player: PublicPlayer | undefined; role: Role | null }) {
   const imposter = role === 'GRINCH';
+  const jester = role === 'JESTER';
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.6 }}
@@ -316,19 +318,21 @@ function OutCard({ player, role }: { player: PublicPlayer | undefined; role: Rol
             ? 'border-white/15 bg-night-800'
             : imposter
               ? 'border-grinch/60 bg-grinch/10 shadow-glow-red'
-              : 'border-elf/60 bg-elf/10 shadow-glow-green'
+              : jester
+                ? 'border-gold/60 bg-gold/10 shadow-glow-gold'
+                : 'border-elf/60 bg-elf/10 shadow-glow-green'
         }`}
       >
-        <Avatar emoji={player?.avatar ?? ''} size={88} ring={!role ? 'gold' : imposter ? 'grinch' : 'elf'} />
+        <Avatar emoji={player?.avatar ?? ''} size={88} ring={!role || jester ? 'gold' : imposter ? 'grinch' : 'elf'} />
         <h2 className="heading break-all text-[clamp(2rem,10vw,3rem)]">{player?.name ?? 'Someone'}</h2>
         {role ? (
           <motion.p
             initial={{ opacity: 0, scale: 0.5 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.3, type: 'spring', damping: 9 }}
-            className={`heading text-[clamp(1.4rem,7vw,2rem)] ${imposter ? 'text-grinch' : 'text-elf'}`}
+            className={`heading text-[clamp(1.4rem,7vw,2rem)] ${roleText(role)}`}
           >
-            {imposter ? 'was an Imposter!' : 'was innocent.'}
+            {imposter ? 'was an Imposter!' : jester ? 'was the Jester! They wanted this.' : 'was innocent.'}
           </motion.p>
         ) : (
           <motion.p

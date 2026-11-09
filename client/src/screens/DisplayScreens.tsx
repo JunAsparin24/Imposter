@@ -139,6 +139,7 @@ export function DisplayLobby() {
               {s.mode === 'CHAOS' ? 'Secret # of Imposters' : `${grinches} Imposter${grinches === 1 ? '' : 's'}`}
             </div>
             <div className="max-w-[16rem] truncate rounded-full bg-black/40 px-3 py-1.5 text-snow/80">{words}</div>
+            {s.specialRoles.includes('JESTER') && <div className="rounded-full bg-black/40 px-3 py-1.5 text-gold">+ Jester</div>}
             {room.locked && <div className="rounded-full bg-black/40 px-3 py-1.5 text-gold">Room locked</div>}
           </dl>
         </div>
@@ -187,7 +188,7 @@ export function DisplayRoleReveal() {
         title="Check your phones!"
         sub={
           <>
-            Press and hold your card to see your secret role. <b className="text-grinch">{m.grinchCount === null ? 'A secret number of Imposters' : `${m.grinchCount} Imposter${m.grinchCount === 1 ? '' : 's'}`}</b>{' '}
+            Press and hold your card to see your secret role. <b className="text-grinch">{m.grinchCount === null ? 'A secret number of Imposters' : `${m.grinchCount} Imposter${m.grinchCount === 1 ? '' : 's'}`}{m.specialRoles.includes('JESTER') ? ' and a Jester' : ''}</b>{' '}
             hiding among {participants.length} players.
           </>
         }

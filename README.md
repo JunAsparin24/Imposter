@@ -28,12 +28,17 @@ custom word pack (`Word | hint` per line), and reset scores.
 The host picks a mode in Settings.
 
 - **Classic:** Innocents get the secret word. Imposters get a hint word and know who the other Imposters are.
-- **Undercover:** Imposters get a different but related word (e.g. Pancakes vs Waffles) instead of a hint.
-  They know they're Imposters and who their teammates are. Innocents don't know the other word. Both words
-  are revealed at the end. Word pairs live in `server/src/words/undercover.json` (custom packs aren't used).
 - **Chaos:** a secret, random number of Imposters each match (about 1 in 7 matches has none). Imposters don't
   know each other, and only get a hint in some matches. Always elimination voting with Skip allowed.
   With no Imposters, skipping the vote wins for everyone; voting someone out means Paranoia and nobody wins.
+
+## Special roles
+
+Switched on by the host under Settings → Special roles (only dealt when there are enough players,
+never in practice rounds). Everyone can see which special roles are in play, but not who has them.
+
+- **Jester** (4+ players): one non-Imposter knows the word but wins alone (+4) if the group votes them
+  out, which ends the match. Otherwise the Jester loses.
 
 ## Putting it online (Render)
 

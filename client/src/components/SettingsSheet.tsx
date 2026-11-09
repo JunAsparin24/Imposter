@@ -3,6 +3,7 @@ import { useState } from 'react';
 import {
   CATEGORIES,
   MODES,
+  SPECIAL_ROLES,
   DISCUSSION_MAX_SECONDS,
   DISCUSSION_PRESETS,
   MAX_PLAYERS,
@@ -136,6 +137,22 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
           )}
         </Section>
 
+        <Section title="Special roles">
+          <div className="divide-y divide-white/[0.06]">
+            {SPECIAL_ROLES.map((r) => (
+              <Toggle
+                key={r.id}
+                checked={s.specialRoles.includes(r.id)}
+                onChange={(v) =>
+                  update({ specialRoles: v ? [...s.specialRoles, r.id] : s.specialRoles.filter((x) => x !== r.id) })
+                }
+                label={r.name}
+                description={`${r.description} Needs ${r.minPlayers}+ players.`}
+              />
+            ))}
+          </div>
+        </Section>
+
         <Section title="Categories">
           <div className="flex flex-wrap gap-1.5">
             {CATEGORIES.map((c) => {
@@ -163,9 +180,6 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
             >
               {room.customPack ? 'Edit your custom word pack' : '+ Make your own word pack'}
             </button>
-          )}
-          {s.mode === 'UNDERCOVER' && (
-            <p className="mt-2 text-xs text-night-300">Undercover uses its own built-in word pairs from these categories. Custom packs aren't used.</p>
           )}
         </Section>
 
@@ -275,11 +289,8 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
               checked={s.grinchHint}
               onChange={(v) => update({ grinchHint: v })}
               label="Hint word for Imposters"
-              disabled={s.mode === 'UNDERCOVER'}
               description={
-                s.mode === 'UNDERCOVER'
-                  ? 'Not used in Undercover: Imposters get their own word instead.'
-                  : chaos
+                chaos
                     ? 'In Chaos, Imposters only get the hint in some matches (random).'
                     : 'Every Imposter gets the same hint word, e.g. “Baked” for Cookies.'
               }
@@ -352,6 +363,7 @@ export function settingsSummary(s: GameSettings, players: number, customPackName
     },
     { label: 'Voting', value: s.mode === 'CHAOS' || s.votingSystem === 'ELIMINATION' ? 'Elimination' : 'Single vote' },
     { label: 'Discussion', value: s.discussionSeconds ? `${s.discussionSeconds}s` : 'No timer' },
+    { label: 'Special roles', value: s.specialRoles.length ? s.specialRoles.map((r) => SPECIAL_ROLES.find((x) => x.id === r)?.name ?? r).join(', ') : 'None' },
     { label: 'Final guess', value: s.finalGuessEnabled ? 'On' : 'Off' },
     { label: 'Matches', value: s.totalMatches ? String(s.totalMatches) : 'Endless' },
   ];

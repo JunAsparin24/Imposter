@@ -131,7 +131,7 @@ export function RoleCard({ priv, compact = false }: { priv: PrivatePlayerState; 
   );
 }
 
-/** Who the other Imposters are (Classic and Undercover). */
+/** Who the other Imposters are (Classic mode). */
 function TeamBox({ priv }: { priv: PrivatePlayerState }) {
   return (
     <div className="w-full rounded-2xl bg-black/30 px-4 py-3">
@@ -166,27 +166,27 @@ function RoleContent({ priv }: { priv: PrivatePlayerState }) {
           {priv.categoryName && <p className="mt-1.5 text-xs font-semibold text-night-300">{priv.categoryName}</p>}
         </div>
         <p className="max-w-[18rem] text-sm text-snow/80">
-          {mode === 'UNDERCOVER'
-            ? 'The Imposters have a similar but different word. Listen for clues that are slightly off.'
-            : mode === 'CHAOS'
+          {mode === 'CHAOS'
               ? 'Chaos: there might be several Imposters, or none at all.'
               : 'Give a one-word clue without giving the word away.'}
         </p>
       </>
     );
   }
-  if (priv.role === 'GRINCH' && mode === 'UNDERCOVER') {
+  if (priv.role === 'JESTER') {
     return (
       <>
-        <p className="label !text-grinch-light">Your secret role</p>
-        <h2 className="heading text-[clamp(1.9rem,9vw,2.6rem)] text-grinch">Imposter</h2>
-        <div className="mt-1 w-full rounded-2xl bg-black/30 px-4 py-3">
-          <p className="label">Your word</p>
-          <p className="heading mt-1 break-words text-[clamp(1.6rem,8.5vw,2.4rem)] text-grinch-light">{priv.word}</p>
-          <p className="mt-1.5 text-xs text-night-300">The Innocents have a different, related word.</p>
+        <p className="label !text-gold">Your secret role</p>
+        <h2 className="heading text-[clamp(1.9rem,9vw,2.6rem)] text-gold">Jester</h2>
+        <div className="mt-2 w-full rounded-2xl bg-black/30 px-4 py-3">
+          <p className="label">The secret word</p>
+          <p className="heading mt-1 break-words text-[clamp(1.6rem,8.5vw,2.4rem)] text-snow">{priv.word}</p>
+          {priv.categoryName && <p className="mt-1.5 text-xs font-semibold text-night-300">{priv.categoryName}</p>}
         </div>
-        <TeamBox priv={priv} />
-        <p className="max-w-[18rem] text-sm text-snow/80">Give clues that could fit both words. Figure out their word from their clues.</p>
+        <div className="w-full rounded-2xl bg-gold/10 px-4 py-3">
+          <p className="text-base font-bold text-gold">You win if the group votes you out.</p>
+          <p className="mt-1 text-xs text-night-300">You're on nobody's team. Act a little suspicious, but not so obvious that they catch on.</p>
+        </div>
       </>
     );
   }

@@ -5,6 +5,7 @@ import type { MatchResults, PlayerStats, PublicPlayer, WinReason } from '@impost
 import { Avatar, AvatarImg, Confetti, CountUp } from '../components/decor';
 import { SettingsSheet } from '../components/SettingsSheet';
 import { ActionBar, Button, ConfirmButton, SectionTitle, Sheet } from '../components/ui';
+import { wonWith } from '../lib/roles';
 import { useRoom } from '../state/GameProvider';
 
 const REASONS: Record<WinReason, string> = {
@@ -15,6 +16,7 @@ const REASONS: Record<WinReason, string> = {
   GRINCHES_LEFT: 'The Imposters left the game.',
   NO_IMPOSTERS: 'There were no Imposters this time, and you trusted each other. Nice.',
   PARANOIA: 'There were no Imposters this time... and you voted someone out anyway.',
+  JESTER_VOTED_OUT: 'The group voted out the Jester, which is exactly what they wanted.',
 };
 
 // ───────────────────────────── ROUND RESULTS ─────────────────────────────
@@ -25,8 +27,11 @@ export function RoundResultsScreen() {
   const myResult = res.players.find((p) => p.id === session?.playerId);
   const elvesWon = res.winner === 'ELVES';
   const nobody = res.winner === 'NONE';
-  const iWon = nobody ? false : myResult ? (myResult.role === 'ELF') === elvesWon : true;
+  const jesterWon = res.winner === 'JESTER';
+  // The room screen (no role) celebrates every win except "nobody".
+  const iWon = myResult ? wonWith(myResult.role, res.winner) : !nobody;
   const grinches = res.players.filter((p) => p.role === 'GRINCH');
+  const jesters = res.players.filter((p) => p.role === 'JESTER');
   const elves = res.players.filter((p) => p.role === 'ELF');
   const earned = res.players
     .map((p) => ({ ...p, pts: res.pointsEarned[p.id] ?? 0, why: res.pointBreakdown[p.id] ?? [] }))
@@ -43,38 +48,35 @@ export function RoundResultsScreen() {
         className={`rounded-[28px] border-2 px-4 py-6 text-center ${
           nobody
             ? 'border-white/20 bg-white/[0.04]'
-            : elvesWon
+            : jesterWon
+              ? 'border-gold/60 bg-gold/10 shadow-glow-gold'
+              : elvesWon
               ? 'border-elf/60 bg-elf/10 shadow-glow-green'
               : 'border-grinch/60 bg-grinch/10 shadow-glow-red'
         }`}
       >
-        <h1 className={`heading mt-2 text-[clamp(2rem,10vw,3rem)] ${nobody ? 'text-gold' : elvesWon ? 'text-elf' : 'text-grinch'}`}>
-          {nobody ? 'Paranoia! Nobody wins' : elvesWon ? 'The Innocents win!' : 'The Imposters win!'}
+        <h1 className={`heading mt-2 text-[clamp(2rem,10vw,3rem)] ${nobody || jesterWon ? 'text-gold' : elvesWon ? 'text-elf' : 'text-grinch'}`}>
+          {nobody ? 'Paranoia! Nobody wins' : jesterWon ? 'The Jester wins!' : elvesWon ? 'The Innocents win!' : 'The Imposters win!'}
         </h1>
         <p className="mt-2 text-sm text-snow/85">{REASONS[res.reason]}</p>
         {res.practice && <p className="mt-2 text-xs font-bold uppercase tracking-widest text-gold">Practice round · no points</p>}
         {myResult && (
           <p className={`mt-3 text-sm font-bold ${iWon ? 'text-gold' : 'text-night-300'}`}>
-            {nobody ? 'Everyone loses this one.' : iWon ? 'Your team won!' : 'Your team lost this one.'}
+            {nobody ? 'Everyone loses this one.' : jesterWon ? (iWon ? 'You fooled everyone!' : 'Everyone else loses this one.') : iWon ? 'Your team won!' : 'Your team lost this one.'}
           </p>
         )}
       </motion.div>
 
       <div className="card p-5 text-center">
-        <p className="label">{res.imposterWord ? "The Innocents' word was" : 'The secret word was'}</p>
+        <p className="label">The secret word was</p>
         <p className="heading mt-2 break-words text-[clamp(1.8rem,9vw,2.6rem)] text-gold">{res.word}</p>
-        {res.imposterWord && (
-          <>
-            <p className="label mt-4">The Imposters' word was</p>
-            <p className="heading mt-2 break-words text-[clamp(1.5rem,7vw,2.1rem)] text-grinch">{res.imposterWord}</p>
-          </>
-        )}
         <p className="mt-2 text-xs text-night-300">{res.categoryName}</p>
       </div>
 
       <div className="grid gap-3 min-[460px]:grid-cols-2">
         <RoleList title={`Imposter${grinches.length === 1 ? '' : 's'}`} tone="grinch" players={grinches} />
         <RoleList title="Innocents" tone="elf" players={elves} />
+        {jesters.length > 0 && <RoleList title="Jester" tone="jester" players={jesters} />}
       </div>
 
       {!res.practice && <section className="card p-4">
@@ -108,10 +110,12 @@ export function RoundResultsScreen() {
   );
 }
 
-function RoleList({ title, tone, players }: { title: string; tone: 'grinch' | 'elf'; players: MatchResults['players'] }) {
+function RoleList({ title, tone, players }: { title: string; tone: 'grinch' | 'elf' | 'jester'; players: MatchResults['players'] }) {
+  const box = { grinch: 'border-grinch/30 bg-grinch/[0.06]', elf: 'border-elf/30 bg-elf/[0.06]', jester: 'border-gold/30 bg-gold/[0.06]' }[tone];
+  const text = { grinch: 'text-grinch', elf: 'text-elf', jester: 'text-gold' }[tone];
   return (
-    <section className={`rounded-3xl border p-4 ${tone === 'grinch' ? 'border-grinch/30 bg-grinch/[0.06]' : 'border-elf/30 bg-elf/[0.06]'}`}>
-      <p className={`heading mb-2 text-lg ${tone === 'grinch' ? 'text-grinch' : 'text-elf'}`}>
+    <section className={`rounded-3xl border p-4 ${box}`}>
+      <p className={`heading mb-2 text-lg ${text}`}>
         {title}
       </p>
       {players.length === 0 && <p className="text-sm text-night-300">Nobody!</p>}
@@ -248,8 +252,8 @@ export function ScoreboardScreen() {
                 <span className="min-w-0 flex-1 truncate">
                   <b>{h.word}</b> <span className="text-night-400">· Imposter: {h.grinchNames.join(', ')}</span>
                 </span>
-                <span className={`shrink-0 text-xs font-bold ${h.winner === 'ELVES' ? 'text-elf' : h.winner === 'NONE' ? 'text-gold' : 'text-grinch'}`}>
-                  {h.winner === 'ELVES' ? 'Innocents' : h.winner === 'NONE' ? 'Nobody' : 'Imposters'}
+                <span className={`shrink-0 text-xs font-bold ${h.winner === 'ELVES' ? 'text-elf' : h.winner === 'NONE' || h.winner === 'JESTER' ? 'text-gold' : 'text-grinch'}`}>
+                  {h.winner === 'ELVES' ? 'Innocents' : h.winner === 'NONE' ? 'Nobody' : h.winner === 'JESTER' ? 'Jester' : 'Imposters'}
                 </span>
               </li>
             ))}

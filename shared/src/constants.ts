@@ -127,16 +127,21 @@ export const MODES: { id: import('./types').GameMode; name: string; description:
     description: 'Innocents get the secret word. Imposters only get a hint word and know who the other Imposters are.',
   },
   {
-    id: 'UNDERCOVER',
-    name: 'Undercover',
-    description:
-      "Imposters get a different but related word (like Pancakes vs Waffles) instead of a hint. They know they're Imposters; Innocents don't know the other word.",
-  },
-  {
     id: 'CHAOS',
     name: 'Chaos',
     description:
       "A secret, random number of Imposters every match, maybe none. Imposters don't know each other, and only sometimes get a hint. If there are no Imposters, skip the vote to win.",
+  },
+];
+
+/** Optional roles the host can add. minPlayers = smallest room where the role is dealt in. */
+export const SPECIAL_ROLES: { id: import('./types').SpecialRole; name: string; description: string; minPlayers: number }[] = [
+  {
+    id: 'JESTER',
+    name: 'Jester',
+    description:
+      "One non-Imposter secretly becomes the Jester. They know the word but win alone if the group votes them out, so they act suspicious on purpose.",
+    minPlayers: 4,
   },
 ];
 
@@ -167,6 +172,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   allowRepeatWords: false,
   totalMatches: 0,
   maxPlayers: DEFAULT_MAX_PLAYERS,
+  specialRoles: [],
 };
 
 export const SCORING = {
@@ -174,6 +180,7 @@ export const SCORING = {
   GRINCH_WIN: 3,
   CORRECT_VOTE: 1,
   FINAL_GUESS_BONUS: 3,
+  JESTER_WIN: 4,
 } as const;
 
 export const TIMING = {

@@ -1,4 +1,4 @@
-import { MODES, SCORING } from '@imposter/shared';
+import { MODES, SCORING, SPECIAL_ROLES } from '@imposter/shared';
 
 const steps = [
   {
@@ -65,6 +65,17 @@ export function HowToPlay() {
       </div>
 
       <div className="rounded-2xl bg-white/[0.03] px-4 py-3.5 text-sm">
+        <p className="mb-2 font-bold">Special roles</p>
+        <ul className="space-y-1.5 text-night-300">
+          {SPECIAL_ROLES.map((r) => (
+            <li key={r.id}>
+              <b className="text-gold">{r.name}:</b> {r.description}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="rounded-2xl bg-white/[0.03] px-4 py-3.5 text-sm">
         <p className="mb-2 font-bold">Points</p>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-night-300">
           <dt>Innocents win</dt>
@@ -75,6 +86,8 @@ export function HowToPlay() {
           <dd className="text-right font-bold text-snow">+{SCORING.CORRECT_VOTE}</dd>
           <dt>Guessing the word</dt>
           <dd className="text-right font-bold text-gold">+{SCORING.FINAL_GUESS_BONUS}</dd>
+          <dt>Jester voted out</dt>
+          <dd className="text-right font-bold text-gold">+{SCORING.JESTER_WIN}</dd>
         </dl>
       </div>
     </div>

@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, Crown, KeyRound, LogOut, Menu, Settings2, UserX, Users, WifiOff } from 'lucide-react';
 import { useState } from 'react';
 import type { PublicPlayer } from '@imposter/shared';
+import { roleName, roleText } from '../lib/roles';
 import { useGame, useRoom } from '../state/GameProvider';
 import { Avatar } from './decor';
 import { HowToPlay } from './HowToPlay';
@@ -269,8 +270,8 @@ export function PlayerRow({
           {!player.connected && player.status !== 'LEFT' && <span className="text-grinch-light">Reconnecting…</span>}
           {player.status === 'LEFT' && <span>Left the game</span>}
           {player.revealedRole && (
-            <span className={player.revealedRole === 'GRINCH' ? 'font-bold text-grinch' : 'font-bold text-elf'}>
-              {player.revealedRole === 'GRINCH' ? 'Imposter' : 'Innocent'}
+            <span className={`font-bold ${roleText(player.revealedRole)}`}>
+              {roleName(player.revealedRole)}
             </span>
           )}
           {sub}

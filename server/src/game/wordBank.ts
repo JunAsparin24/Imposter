@@ -23,45 +23,10 @@ const WORDS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'words');
 export class WordBank {
   private readonly byCategory = new Map<CategoryId, WordEntry[]>();
   private practiceWords: WordEntry[] = [];
-  /** Undercover mode: related-but-different word pairs. */
-  private readonly pairs: { a: string; b: string; category: CategoryId }[] = [];
-
-  pairCount(): number {
-    return this.pairs.length;
-  }
-
-  /**
-   * Undercover: picks a pair from the selected categories ('random'/custom-only = all pairs) and
-   * randomly decides which word the innocents get. Avoids recently used words when possible.
-   */
-  pickPair(categories: CategoryId[], recent: Iterable<string>, rng: Rng): { innocent: WordEntry; imposter: WordEntry } {
-    const wanted: CategoryId[] = categories.includes('random') ? [] : categories.filter((c) => c !== 'custom');
-    let pool = wanted.length ? this.pairs.filter((p) => wanted.includes(p.category)) : this.pairs;
-    if (pool.length === 0) pool = this.pairs;
-    const recentSet = new Set(recent);
-    const fresh = pool.filter((p) => !recentSet.has(normalizeWord(p.a)) && !recentSet.has(normalizeWord(p.b)));
-    const choice = (fresh.length ? fresh : pool)[rng.int((fresh.length ? fresh : pool).length)];
-    const flip = rng.int(2) === 1;
-    const [innocent, imposter] = flip ? [choice.b, choice.a] : [choice.a, choice.b];
-    return {
-      innocent: { word: innocent, hint: '', category: choice.category },
-      imposter: { word: imposter, hint: '', category: choice.category },
-    };
-  }
-
   constructor(dir: string = WORDS_DIR) {
     for (const file of readdirSync(dir)) {
       if (!file.endsWith('.json')) continue;
-      const data = JSON.parse(readFileSync(join(dir, file), 'utf8')) as { id: string; words: RawWord[]; pairs?: string[][] };
-      if (data.id === 'undercover') {
-        for (const p of data.pairs ?? []) {
-          if (p.length < 3 || normalizeWord(p[0]) === normalizeWord(p[1]) || !CATEGORY_IDS.includes(p[2] as CategoryId)) {
-            throw new Error(`Bad undercover pair in ${file}: ${JSON.stringify(p)}`);
-          }
-          this.pairs.push({ a: p[0], b: p[1], category: p[2] as CategoryId });
-        }
-        continue;
-      }
+      const data = JSON.parse(readFileSync(join(dir, file), 'utf8')) as { id: string; words: RawWord[] };
       const isPractice = data.id === 'practice';
       if (!isPractice && (!CATEGORY_IDS.includes(data.id as CategoryId) || data.id === 'random' || data.id === 'custom')) {
         throw new Error(`Unknown word category "${data.id}" in ${file}`);

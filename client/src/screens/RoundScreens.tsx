@@ -7,6 +7,7 @@ import { ActionBar, Button } from '../components/ui';
 import { play } from '../lib/sound';
 import { useFinalSecondsTick } from '../lib/hooks';
 import { formatSeconds, useCountdown } from '../lib/useCountdown';
+import { roleName } from '../lib/roles';
 import { useRoom } from '../state/GameProvider';
 
 function PhaseTitle({ kicker, title, sub, tone }: { kicker?: string; title: string; sub?: React.ReactNode; tone?: 'grinch' | 'elf' | 'gold' }) {
@@ -51,7 +52,7 @@ export function RoleRevealScreen() {
         sub={
           <>
             <b className="text-grinch">
-              {m.grinchCount === null ? 'A secret number of Imposters' : `${m.grinchCount} Imposter${m.grinchCount === 1 ? '' : 's'}`}
+              {m.grinchCount === null ? 'A secret number of Imposters' : `${m.grinchCount} Imposter${m.grinchCount === 1 ? '' : 's'}`}{m.specialRoles.includes('JESTER') ? ' and a Jester' : ''}
             </b>{' '}
             hiding among {participants.length} players
           </>
@@ -272,7 +273,7 @@ export function DiscussionScreen() {
         </ul>
         {out.length > 0 && (
           <p className="mt-3 text-center text-xs text-night-400">
-            Out: {out.map((p) => `${p.name} (${p.revealedRole === 'GRINCH' ? 'Imposter' : p.revealedRole === 'ELF' ? 'Innocent' : 'left'})`).join(', ')}
+            Out: {out.map((p) => `${p.name} (${p.revealedRole ? roleName(p.revealedRole) : 'left'})`).join(', ')}
           </p>
         )}
       </section>

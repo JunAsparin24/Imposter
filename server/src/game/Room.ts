@@ -127,10 +127,10 @@ interface Match {
   practice: boolean;
   /** Mode actually used for this match (practice rounds are always Classic). */
   mode: GameMode;
-  /** Undercover: the imposters' related-but-different word. */
-  imposterWord: WordEntry | null;
   /** Chaos: whether imposters get a hint this match (random). */
   hintGiven: boolean;
+  /** The Jester this match, if one was dealt. */
+  jesterId: string | null;
   lastGuess: LastGuessInfo | null;
   results: MatchResults | null;
 }
@@ -457,18 +457,10 @@ export class Room {
     if (!practice && this.isSeriesComplete()) this.resetScoresInternal();
 
     const recent = settings.allowRepeatWords ? [] : this.recentWords;
-    let word: WordEntry;
-    let imposterWord: WordEntry | null = null;
-    if (practice) {
-      word = this.deps.words.pickPractice(recent, this.deps.rng);
-    } else if (mode === 'UNDERCOVER') {
-      const pair = this.deps.words.pickPair(settings.categories, recent, this.deps.rng);
-      word = pair.innocent;
-      imposterWord = pair.imposter;
-    } else {
-      word = this.deps.words.pick(settings.categories, recent, this.deps.rng, this.customPack?.words ?? []);
-    }
-    for (const w of [word, imposterWord]) if (w) this.recentWords.push(normalizeWord(w.word));
+    const word: WordEntry = practice
+      ? this.deps.words.pickPractice(recent, this.deps.rng)
+      : this.deps.words.pick(settings.categories, recent, this.deps.rng, this.customPack?.words ?? []);
+    this.recentWords.push(normalizeWord(word.word));
     while (this.recentWords.length > RECENT_WORDS_LIMIT) this.recentWords.shift();
 
     // Chaos: a secret, random number of imposters, sometimes none at all.
@@ -479,6 +471,14 @@ export class Room {
     const ids = present.map((p) => p.id);
     const grinchIds = shuffle(ids, this.deps.rng).slice(0, grinchCount);
     const roles = new Map<string, Role>(ids.map((id) => [id, grinchIds.includes(id) ? 'GRINCH' : 'ELF']));
+
+    // Special roles: the Jester is one of the non-imposters, only if at least 2 real Innocents remain.
+    let jesterId: string | null = null;
+    const nonImposters = ids.filter((id) => !grinchIds.includes(id));
+    if (!practice && settings.specialRoles.includes('JESTER') && ids.length >= 4 && nonImposters.length >= 3) {
+      jesterId = nonImposters[this.deps.rng.int(nonImposters.length)];
+      roles.set(jesterId, 'JESTER');
+    }
 
     this.match = {
       id: generateId('m'),
@@ -506,8 +506,8 @@ export class Room {
       allGuesses: [],
       practice,
       mode,
-      imposterWord,
       hintGiven,
+      jesterId,
       lastGuess: null,
       results: null,
     };
@@ -835,6 +835,9 @@ export class Room {
         return;
       }
     }
+    if (m.jesterId && (r.kind === 'ELIMINATED' || r.kind === 'ACCUSED') && r.playerIds.includes(m.jesterId)) {
+      return this.endMatch('JESTER', 'JESTER_VOTED_OUT');
+    }
     if (m.grinchIds.length === 0) {
       if (r.kind === 'SKIPPED') return this.endMatch('ELVES', 'NO_IMPOSTERS');
       if (r.kind === 'ELIMINATED' || r.kind === 'ACCUSED') return this.endMatch('NONE', 'PARANOIA');
@@ -946,6 +949,7 @@ export class Room {
       const role = m.roles.get(id);
       if (winner === 'ELVES' && role === 'ELF') add(id, SCORING.ELF_WIN, 'Innocents won');
       if (winner === 'GRINCHES' && role === 'GRINCH') add(id, SCORING.GRINCH_WIN, 'Imposters won');
+      if (winner === 'JESTER' && role === 'JESTER') add(id, SCORING.JESTER_WIN, 'Got voted out as the Jester');
     }
     const correctVotes: Record<string, number> = {};
     for (const v of m.voteHistory) {
@@ -984,6 +988,7 @@ export class Room {
         p.stats.wins++;
         p.stats.grinchWins++;
       }
+      if (winner === 'JESTER' && role === 'JESTER') p.stats.wins++;
       if (m.eliminatedIds.includes(id)) p.stats.timesVotedOut++;
       p.stats.correctVotes += correctVotes[id] ?? 0;
       if (m.allGuesses.some((g) => g.correct && g.playerId === id)) p.stats.correctGuesses++;
@@ -1004,7 +1009,6 @@ export class Room {
       winner,
       reason,
       word: m.word.word,
-      imposterWord: m.imposterWord?.word ?? null,
       category: m.word.category,
       categoryName: this.categoryLabel(m),
       players: m.participantIds.map((id) => ({
@@ -1219,6 +1223,7 @@ export class Room {
         finalGuessEnabled: m.settings.finalGuessEnabled,
         allowSkipVote: m.settings.allowSkipVote,
         practice: m.practice,
+        specialRoles: m.jesterId ? ['JESTER'] : [],
         participantIds: [...m.participantIds],
         acknowledgedIds: [...m.acknowledged],
         speakingOrder: [...m.speakingOrder],
@@ -1293,15 +1298,12 @@ export class Room {
     if (!role) return { ...base, role: playerId ? 'SPECTATOR' : null };
 
     const out: PrivatePlayerState = { ...base, role };
-    if (role === 'ELF') {
+    if (role === 'ELF' || role === 'JESTER') {
       out.word = m.word.word;
       out.category = m.word.category === 'practice' ? null : m.word.category;
       out.categoryName = this.categoryLabel(m);
     } else {
-      if (m.mode === 'UNDERCOVER') {
-        // Undercover: imposters get their own related word (never the innocents' word).
-        out.word = m.imposterWord!.word;
-      } else if (m.settings.grinchHint && m.hintGiven) {
+      if (m.settings.grinchHint && m.hintGiven) {
         // Every Imposter gets the SAME hint word (never the secret word itself).
         out.hint = m.word.hint || 'No hint for this one';
       }

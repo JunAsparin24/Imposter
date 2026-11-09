@@ -20,14 +20,18 @@ export type Phase =
   | 'SCOREBOARD';
 
 /**
- * CLASSIC: imposters get a hint word. UNDERCOVER: imposters get a related but different word.
+ * CLASSIC: imposters get a hint word and know their teammates.
  * CHAOS: secret, random number of imposters (maybe zero), teammates hidden, hint is random.
  */
-export type GameMode = 'CLASSIC' | 'UNDERCOVER' | 'CHAOS';
+export type GameMode = 'CLASSIC' | 'CHAOS';
 export type VotingSystem = 'ELIMINATION' | 'SINGLE';
-export type Role = 'ELF' | 'GRINCH';
+/** ELF = Innocent, GRINCH = Imposter, JESTER = wants to get voted out (knows the word, plays alone). */
+export type Role = 'ELF' | 'GRINCH' | 'JESTER';
+
+/** Optional extra roles the host can switch on. */
+export type SpecialRole = 'JESTER';
 /** 'NONE' = nobody wins (Chaos: the group voted someone out when there were no imposters). */
-export type Team = 'ELVES' | 'GRINCHES' | 'NONE';
+export type Team = 'ELVES' | 'GRINCHES' | 'NONE' | 'JESTER';
 
 export type CategoryId =
   | 'food'
@@ -70,6 +74,8 @@ export interface GameSettings {
   totalMatches: number;
   /** Most players allowed in the room (3 to MAX_PLAYERS). */
   maxPlayers: number;
+  /** Extra roles to deal in (when there are enough players). */
+  specialRoles: SpecialRole[];
 }
 
 export type PlayerStatus = 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'LEFT';
@@ -157,7 +163,9 @@ export type WinReason =
   /** Chaos: there were no imposters and the group skipped the vote. */
   | 'NO_IMPOSTERS'
   /** Chaos: there were no imposters but the group voted someone out anyway. */
-  | 'PARANOIA';
+  | 'PARANOIA'
+  /** The Jester got voted out and wins alone. */
+  | 'JESTER_VOTED_OUT';
 
 export interface ResultPlayer {
   id: string;
@@ -188,8 +196,6 @@ export interface MatchResults {
   winner: Team;
   reason: WinReason;
   word: string;
-  /** Undercover only: the imposters' (different) word. */
-  imposterWord: string | null;
   category: CategoryId | 'practice';
   categoryName: string;
   players: ResultPlayer[];
@@ -225,6 +231,8 @@ export interface PublicMatchState {
   allowSkipVote: boolean;
   /** Practice round: easy everyday word, no points. */
   practice: boolean;
+  /** Special roles actually dealt this match (everyone knows they exist, not who has them). */
+  specialRoles: SpecialRole[];
   participantIds: string[];
   acknowledgedIds: string[];
   speakingOrder: string[];

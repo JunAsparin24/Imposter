@@ -598,42 +598,6 @@ describe('player limit', () => {
   });
 });
 
-describe('undercover mode', () => {
-  it('imposters get a related but different word; innocents never see it', () => {
-    const t = makeRoom(6, { mode: 'UNDERCOVER', grinchCount: 2, finalGuessEnabled: false });
-    t.room.startMatch(t.host);
-    const m = t.room.match!;
-    expect(m.imposterWord).not.toBeNull();
-    expect(m.imposterWord!.word).not.toBe(m.word.word);
-    const g = grinches(t);
-    for (const id of g) {
-      const me = t.room.privateState(id);
-      expect(me.word).toBe(m.imposterWord!.word);
-      expect(me.hint).toBeNull();
-      expect(me.teammates).toHaveLength(1); // they still know their teammate
-      expect(JSON.stringify(me)).not.toContain(`"${m.word.word}"`);
-    }
-    for (const id of elves(t)) {
-      const me = t.room.privateState(id);
-      expect(me.word).toBe(m.word.word);
-      expect(JSON.stringify(me)).not.toContain(`"${m.imposterWord!.word}"`);
-    }
-    const pub = JSON.stringify(t.room.publicState());
-    expect(pub).not.toContain(`"${m.word.word}"`);
-    expect(pub).not.toContain(`"${m.imposterWord!.word}"`);
-  });
-
-  it('reveals both words at the end', () => {
-    const t = makeRoom(4, { mode: 'UNDERCOVER', finalGuessEnabled: false });
-    startToClues(t);
-    toVoting(t);
-    everyoneVotes(t, grinches(t)[0]);
-    continueResults(t);
-    const res = t.room.publicState().match!.results!;
-    expect(res.winner).toBe('ELVES');
-    expect(res.imposterWord).toBe(t.room.match!.imposterWord!.word);
-  });
-});
 
 describe('chaos mode', () => {
   /** A Room whose dice always roll `n` (or n capped to the range). */
@@ -684,5 +648,57 @@ describe('chaos mode', () => {
     expect(res.winner).toBe('NONE');
     expect(res.reason).toBe('PARANOIA');
     expect(paranoid.room.publicState().players.every((p) => p.score === 0)).toBe(true);
+  });
+});
+
+describe('jester', () => {
+  function withJester(players: number) {
+    const t = makeRoom(players, { specialRoles: ['JESTER'], grinchCount: 1, finalGuessEnabled: false, allowSkipVote: false });
+    startToClues(t);
+    const m = t.room.match!;
+    return { t, m, jester: m.jesterId };
+  }
+
+  it('is dealt to a non-imposter, sees the word, and is hidden from everyone', () => {
+    const { t, m, jester } = withJester(5);
+    expect(jester).not.toBeNull();
+    expect(m.grinchIds).not.toContain(jester);
+    const me = t.room.privateState(jester!);
+    expect(me.role).toBe('JESTER');
+    expect(me.word).toBe(m.word.word);
+    expect(t.room.privateState(m.grinchIds[0]).teammates.map((x) => x.id)).not.toContain(jester);
+    const pub = t.room.publicState();
+    expect(pub.match!.specialRoles).toEqual(['JESTER']);
+    // Everyone knows a Jester is in play, but nobody's role (the Jester's included) is public.
+    expect(pub.players.every((p) => p.revealedRole === null)).toBe(true);
+  });
+
+  it('wins alone when voted out, and nobody else scores', () => {
+    const { t, jester } = withJester(5);
+    toVoting(t);
+    voteAll(t, (v) => (v === jester ? t.room.aliveIds().find((id) => id !== jester)! : jester!));
+    continueResults(t);
+    const pub = t.room.publicState();
+    expect(pub.match!.results!.winner).toBe('JESTER');
+    expect(pub.match!.results!.reason).toBe('JESTER_VOTED_OUT');
+    for (const p of pub.players) expect(p.score).toBe(p.id === jester ? SCORING.JESTER_WIN : 0);
+  });
+
+  it('loses with no points if the imposter is caught instead', () => {
+    const { t, m, jester } = withJester(5);
+    toVoting(t);
+    everyoneVotes(t, m.grinchIds[0]);
+    continueResults(t);
+    const pub = t.room.publicState();
+    expect(pub.match!.results!.winner).toBe('ELVES');
+    expect(pub.players.find((p) => p.id === jester)!.score).toBe(0);
+  });
+
+  it('is not dealt when the room is too small or in practice rounds', () => {
+    expect(withJester(4).jester).not.toBeNull(); // 1 imposter + jester + 2 innocents
+    expect(withJester(3).jester).toBeNull();
+    const t = makeRoom(6, { specialRoles: ['JESTER'] });
+    t.room.startMatch(t.host, true);
+    expect(t.room.match!.jesterId).toBeNull();
   });
 });

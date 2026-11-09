@@ -51,7 +51,7 @@ export const schemas = {
   settings: z.object({
     settings: z
       .object({
-        mode: z.enum(['CLASSIC', 'UNDERCOVER', 'CHAOS']),
+        mode: z.enum(['CLASSIC', 'CHAOS']),
         grinchCount: z.union([z.literal('auto'), z.number().int().min(1).max(maxGrinchCount(MAX_PLAYERS))]),
         categories: z
           .array(z.enum(CATEGORY_IDS as [CategoryId, ...CategoryId[]]))
@@ -69,6 +69,7 @@ export const schemas = {
         allowRepeatWords: z.boolean(),
         totalMatches: z.number().int().min(0).max(50),
         maxPlayers: z.number().int().min(MIN_PLAYERS).max(MAX_PLAYERS),
+        specialRoles: z.array(z.enum(['JESTER'])).max(5),
       })
       .partial()
       .strip(),
