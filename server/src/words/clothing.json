@@ -1,12 +1,12 @@
 {
   "id": "clothing",
   "words": [
-    ["Scarf", "Neck"], ["Mittens", "Hands"], ["Gloves", "Fingers"], ["Beanie", "Knit"],
-    ["Earmuffs", "Ears"], ["Boots", "Snow"], ["Jacket", "Zipper"], ["Ugly Sweater", "Funny"],
-    ["Hoodie", "Comfy"], ["Snow Pants", "Legs"], ["Raincoat", "Wet"], ["Umbrella", "Rain"],
-    ["Santa Suit", "Costume"], ["Onesie", "One piece"], ["Goggles", "Eyes"], ["Bathrobe", "Towel"],
-    ["Coat", "Hanger"], ["Tie", "Formal"], ["Dress", "Twirl"], ["Jeans", "Pants"],
-    ["Swimsuit", "Pool"], ["Sneakers", "Running"], ["Pajama Pants", "Bed"], ["T-Shirt", "Sleeves"],
-    ["Shorts", "Summer"], ["Belt", "Buckle"]
+    ["Scarf", "Winter"], ["Mittens", "Winter"], ["Gloves", "Winter"], ["Beanie", "Warm"],
+    ["Earmuffs", "Warm"], ["Boots", "Leather"], ["Jacket", "Leather"], ["Ugly Sweater", "Party"],
+    ["Hoodie", "Comfy"], ["Snow Pants", "Winter"], ["Raincoat", "Weather"], ["Umbrella", "Weather"],
+    ["Santa Suit", "Costume"], ["Onesie", "Comfy"], ["Goggles", "Winter"], ["Bathrobe", "Comfy"],
+    ["Coat", "Outside"], ["Tie", "Party"], ["Dress", "Party"], ["Jeans", "Everyday"],
+    ["Swimsuit", "Summer"], ["Sneakers", "Everyday"], ["Pajama Pants", "Comfy"], ["T-Shirt", "Everyday"],
+    ["Shorts", "Summer"], ["Belt", "Leather"]
   ]
 }

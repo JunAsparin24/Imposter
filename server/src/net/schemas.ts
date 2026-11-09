@@ -5,6 +5,7 @@ import {
   CUSTOM_PACK,
   DISCUSSION_MAX_SECONDS,
   MAX_PLAYERS,
+  MIN_PLAYERS,
   ROOM_CODE_LENGTH,
   maxGrinchCount,
   type CategoryId,
@@ -67,6 +68,7 @@ export const schemas = {
         autoAdvance: z.boolean(),
         allowRepeatWords: z.boolean(),
         totalMatches: z.number().int().min(0).max(50),
+        maxPlayers: z.number().int().min(MIN_PLAYERS).max(MAX_PLAYERS),
       })
       .partial()
       .strip(),

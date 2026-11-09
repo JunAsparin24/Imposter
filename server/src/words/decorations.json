@@ -1,12 +1,12 @@
 {
   "id": "decorations",
   "words": [
-    ["Christmas Tree", "Pine"], ["Christmas Lights", "Glow"], ["Ornament", "Hanging"], ["Star", "Top"],
-    ["Wreath", "Door"], ["Stocking", "Fireplace"], ["Tinsel", "Sparkly"], ["Snow Globe", "Shake"],
-    ["Mistletoe", "Kiss"], ["Bells", "Ring"], ["Present", "Surprise"], ["Wrapping Paper", "Rip"],
-    ["Ribbon", "Curly"], ["Bow", "Tie"], ["Angel", "Halo"], ["Nutcracker", "Soldier"],
-    ["Gingerbread House", "Candy"], ["Christmas Card", "Mail"], ["Santa Hat", "Pom-pom"], ["Advent Calendar", "Countdown"],
-    ["Fireplace", "Logs"], ["Chimney", "Roof"], ["Sleigh", "Flying"], ["Paper Snowflake", "Scissors"],
-    ["Pine Cone", "Seeds"], ["Candle", "Wax"], ["Garland", "Stairs"], ["Glitter", "Messy"]
+    ["Christmas Tree", "Green"], ["Christmas Lights", "Hanging"], ["Ornament", "Tree"], ["Star", "Tree"],
+    ["Wreath", "Green"], ["Stocking", "Hanging"], ["Tinsel", "Shiny"], ["Snow Globe", "Shelf"],
+    ["Mistletoe", "Green"], ["Bells", "Shiny"], ["Present", "Gift"], ["Wrapping Paper", "Gift"],
+    ["Ribbon", "Red"], ["Bow", "Red"], ["Angel", "Tree"], ["Nutcracker", "Shelf"],
+    ["Gingerbread House", "Shelf"], ["Christmas Card", "Paper"], ["Santa Hat", "Red"], ["Advent Calendar", "Paper"],
+    ["Fireplace", "House"], ["Chimney", "House"], ["Sleigh", "Wooden"], ["Paper Snowflake", "Hanging"],
+    ["Pine Cone", "Green"], ["Candle", "Warm"], ["Garland", "Green"], ["Glitter", "Shiny"]
   ]
 }

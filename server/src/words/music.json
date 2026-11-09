@@ -1,11 +1,11 @@
 {
   "id": "music",
   "words": [
-    ["Jingle Bells", "Sleigh"], ["Silent Night", "Quiet"], ["Let It Snow", "Weather"], ["All I Want for Christmas Is You", "Wish"],
-    ["Deck the Halls", "Holly"], ["We Wish You a Merry Christmas", "Pudding"], ["Joy to the World", "Happy"], ["Last Christmas", "Heart"],
-    ["Feliz Navidad", "Spanish"], ["Santa Claus Is Coming to Town", "Naughty"], ["Jingle Bell Rock", "Dance"], ["White Christmas", "Dreaming"],
-    ["Rockin' Around the Christmas Tree", "Party"], ["Little Drummer Boy", "Beat"], ["Frosty the Snowman", "Hat"], ["Rudolph the Red-Nosed Reindeer", "Glow"],
-    ["Winter Wonderland", "Walking"], ["Let It Go", "Ice"], ["Happy Birthday", "Candles"], ["Baby Shark", "Family"],
-    ["Twinkle Twinkle Little Star", "Sky"], ["Wheels on the Bus", "Round"], ["Old MacDonald", "Farm"], ["Twelve Days of Christmas", "Counting"]
+    ["Jingle Bells", "Christmas"], ["Silent Night", "Christmas"], ["Let It Snow", "Winter"], ["All I Want for Christmas Is You", "Pop"],
+    ["Deck the Halls", "Christmas"], ["We Wish You a Merry Christmas", "Carol"], ["Joy to the World", "Church"], ["Last Christmas", "Pop"],
+    ["Feliz Navidad", "Carol"], ["Santa Claus Is Coming to Town", "Carol"], ["Jingle Bell Rock", "Oldie"], ["White Christmas", "Oldie"],
+    ["Rockin' Around the Christmas Tree", "Oldie"], ["Little Drummer Boy", "Church"], ["Frosty the Snowman", "Kids"], ["Rudolph the Red-Nosed Reindeer", "Kids"],
+    ["Winter Wonderland", "Christmas"], ["Let It Go", "Pop"], ["Happy Birthday", "Kids"], ["Baby Shark", "Kids"],
+    ["Twinkle Twinkle Little Star", "Kids"], ["Wheels on the Bus", "Kids"], ["Old MacDonald", "Kids"], ["Twelve Days of Christmas", "Carol"]
   ]
 }

@@ -1,13 +1,13 @@
 {
   "id": "places",
   "words": [
-    ["North Pole", "Santa"], ["School", "Teacher"], ["Beach", "Sand"], ["Hospital", "Doctor"],
-    ["Airport", "Plane"], ["Mall", "Shopping"], ["Kitchen", "Cooking"], ["Bedroom", "Sleep"],
-    ["Bathroom", "Shower"], ["Living Room", "Couch"], ["Park", "Swings"], ["Zoo", "Animals"],
-    ["Farm", "Tractor"], ["Library", "Books"], ["Movie Theater", "Screen"], ["Restaurant", "Menu"],
-    ["Church", "Pray"], ["Ice Rink", "Skates"], ["Mountain", "Climb"], ["Forest", "Trees"],
-    ["Grocery Store", "Cart"], ["Gym", "Workout"], ["Swimming Pool", "Diving"], ["Campsite", "Tent"],
-    ["Post Office", "Stamps"], ["Bakery", "Bread"], ["Igloo", "Ice"], ["Castle", "King"],
-    ["Space", "Stars"], ["Desert", "Hot"]
+    ["North Pole", "Cold"], ["School", "Weekday"], ["Beach", "Summer"], ["Hospital", "Waiting"],
+    ["Airport", "Waiting"], ["Mall", "Shopping"], ["Kitchen", "Home"], ["Bedroom", "Home"],
+    ["Bathroom", "Home"], ["Living Room", "Home"], ["Park", "Outside"], ["Zoo", "Day trip"],
+    ["Farm", "Outside"], ["Library", "Quiet"], ["Movie Theater", "Night out"], ["Restaurant", "Night out"],
+    ["Church", "Quiet"], ["Ice Rink", "Cold"], ["Mountain", "Outdoors"], ["Forest", "Outdoors"],
+    ["Grocery Store", "Shopping"], ["Gym", "Weekday"], ["Swimming Pool", "Summer"], ["Campsite", "Outdoors"],
+    ["Post Office", "Waiting"], ["Bakery", "Morning"], ["Igloo", "Cold"], ["Castle", "Day trip"],
+    ["Space", "Far"], ["Desert", "Hot"]
   ]
 }

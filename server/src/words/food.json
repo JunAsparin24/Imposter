@@ -2,13 +2,13 @@
   "id": "food",
   "note": "Each entry is [word, hint]. Every Grinch sees the same hint.",
   "words": [
-    ["Cookies", "Oven"], ["Candy Cane", "Peppermint"], ["Hot Chocolate", "Mug"], ["Gingerbread Man", "Run"],
-    ["Turkey", "Dinner"], ["Ham", "Pig"], ["Mashed Potatoes", "Gravy"], ["Pie", "Slice"],
-    ["Cake", "Candles"], ["Milk", "Cow"], ["Marshmallow", "Campfire"], ["Popcorn", "Butter"],
-    ["Chocolate", "Brown"], ["Pancakes", "Syrup"], ["Ice Cream", "Cone"], ["Cupcake", "Frosting"],
-    ["Candy", "Sweet"], ["Pizza", "Cheese"], ["Soup", "Spoon"], ["Bread", "Toast"],
-    ["Orange", "Peel"], ["Cinnamon Roll", "Swirl"], ["Donut", "Hole"], ["Sandwich", "Lunch"],
-    ["Spaghetti", "Noodles"], ["Chicken Nuggets", "Dip"], ["Coffee", "Morning"], ["Waffles", "Breakfast"],
-    ["Chips", "Crunchy"], ["Brownies", "Square"], ["Apple", "Tree"], ["Banana", "Yellow"]
+    ["Cookies", "Baked"], ["Candy Cane", "Sweet"], ["Hot Chocolate", "Warm"], ["Gingerbread Man", "Baked"],
+    ["Turkey", "Dinner"], ["Ham", "Dinner"], ["Mashed Potatoes", "Dinner"], ["Pie", "Dessert"],
+    ["Cake", "Party"], ["Milk", "Morning"], ["Marshmallow", "Sweet"], ["Popcorn", "Snack"],
+    ["Chocolate", "Sweet"], ["Pancakes", "Morning"], ["Ice Cream", "Dessert"], ["Cupcake", "Party"],
+    ["Candy", "Snack"], ["Pizza", "Dinner"], ["Soup", "Warm"], ["Bread", "Bakery"],
+    ["Orange", "Fruit"], ["Cinnamon Roll", "Bakery"], ["Donut", "Bakery"], ["Sandwich", "Snack"],
+    ["Spaghetti", "Dinner"], ["Chicken Nuggets", "Snack"], ["Coffee", "Morning"], ["Waffles", "Morning"],
+    ["Chips", "Snack"], ["Brownies", "Baked"], ["Apple", "Fruit"], ["Banana", "Fruit"]
   ]
 }

@@ -1,12 +1,12 @@
 {
   "id": "activities",
   "words": [
-    ["Sledding", "Hill"], ["Ice Skating", "Blades"], ["Skiing", "Poles"], ["Snowball Fight", "Throw"],
-    ["Building a Snowman", "Carrot"], ["Snow Angel", "Lie down"], ["Hockey", "Puck"], ["Baking", "Kitchen"],
-    ["Wrapping Presents", "Tape"], ["Decorating the Tree", "Lights"], ["Caroling", "Singing"], ["Watching Movies", "Couch"],
-    ["Opening Presents", "Morning"], ["Snowboarding", "Tricks"], ["Shoveling Snow", "Driveway"], ["Sleepover", "Pajamas"],
-    ["Hide and Seek", "Counting"], ["Dancing", "Music"], ["Karaoke", "Microphone"], ["Taking Photos", "Smile"],
-    ["Pillow Fight", "Feathers"], ["Swimming", "Water"], ["Fishing", "Hook"], ["Bowling", "Pins"],
-    ["Painting", "Brush"], ["Reading", "Pages"], ["Shopping", "Bags"], ["Camping", "Marshmallows"]
+    ["Sledding", "Winter"], ["Ice Skating", "Winter"], ["Skiing", "Mountain"], ["Snowball Fight", "Winter"],
+    ["Building a Snowman", "Winter"], ["Snow Angel", "Winter"], ["Hockey", "Winter"], ["Baking", "Indoors"],
+    ["Wrapping Presents", "Holiday"], ["Decorating the Tree", "Holiday"], ["Caroling", "Holiday"], ["Watching Movies", "Relaxing"],
+    ["Opening Presents", "Holiday"], ["Snowboarding", "Mountain"], ["Shoveling Snow", "Winter"], ["Sleepover", "Friends"],
+    ["Hide and Seek", "Kids"], ["Dancing", "Party"], ["Karaoke", "Party"], ["Taking Photos", "Friends"],
+    ["Pillow Fight", "Friends"], ["Swimming", "Summer"], ["Fishing", "Outdoors"], ["Bowling", "Weekend"],
+    ["Painting", "Indoors"], ["Reading", "Relaxing"], ["Shopping", "Weekend"], ["Camping", "Outdoors"]
   ]
 }

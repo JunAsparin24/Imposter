@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Copy, Crown, GraduationCap, Link2, Play, Settings2, Share2, UserX } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { MAX_PLAYERS, MIN_PLAYERS, maxGrinchCount, resolveGrinchCount } from '@imposter/shared';
+import { MIN_PLAYERS, maxGrinchCount, resolveGrinchCount } from '@imposter/shared';
 import { PlayerRow } from '../components/RoomChrome';
 import { SettingsSheet, settingsSummary } from '../components/SettingsSheet';
 import { ActionBar, Button, ConfirmButton, SectionTitle, Toggle } from '../components/ui';
@@ -124,7 +124,7 @@ export function Lobby() {
         <SectionTitle
           right={
             <span className="text-xs font-semibold text-night-300">
-              {readyCount}/{players.length} ready · max {MAX_PLAYERS}
+              {readyCount}/{players.length} ready · max {room.settings.maxPlayers}
             </span>
           }
         >

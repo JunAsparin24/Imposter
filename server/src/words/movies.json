@@ -1,12 +1,12 @@
 {
   "id": "movies",
   "words": [
-    ["Home Alone", "Burglars"], ["Frozen", "Sisters"], ["The Polar Express", "Train"], ["Toy Story", "Cowboy"],
-    ["Shrek", "Ogre"], ["Finding Nemo", "Clownfish"], ["The Lion King", "Africa"], ["Harry Potter", "Wizard"],
-    ["Spider-Man", "Web"], ["SpongeBob", "Pineapple"], ["Minions", "Banana"], ["Star Wars", "Lightsaber"],
-    ["Cars", "Racing"], ["Moana", "Island"], ["Up", "Balloons"], ["Coco", "Guitar"],
-    ["The Simpsons", "Donuts"], ["Peppa Pig", "Muddy"], ["Batman", "Gotham"], ["Barbie", "Pink"],
-    ["Inside Out", "Emotions"], ["Kung Fu Panda", "Dumplings"], ["Jurassic Park", "Dinosaurs"], ["Aladdin", "Lamp"],
-    ["The Little Mermaid", "Ocean"], ["Mario Movie", "Mushroom"], ["Encanto", "Family"], ["Despicable Me", "Villain"]
+    ["Home Alone", "Christmas"], ["Frozen", "Disney"], ["The Polar Express", "Christmas"], ["Toy Story", "Pixar"],
+    ["Shrek", "DreamWorks"], ["Finding Nemo", "Pixar"], ["The Lion King", "Disney"], ["Harry Potter", "Sequel"],
+    ["Spider-Man", "Superhero"], ["SpongeBob", "Cartoon"], ["Minions", "Cartoon"], ["Star Wars", "Sequel"],
+    ["Cars", "Pixar"], ["Moana", "Disney"], ["Up", "Pixar"], ["Coco", "Pixar"],
+    ["The Simpsons", "Cartoon"], ["Peppa Pig", "Cartoon"], ["Batman", "Superhero"], ["Barbie", "Live action"],
+    ["Inside Out", "Pixar"], ["Kung Fu Panda", "DreamWorks"], ["Jurassic Park", "Sequel"], ["Aladdin", "Disney"],
+    ["The Little Mermaid", "Disney"], ["Mario Movie", "Cartoon"], ["Encanto", "Disney"], ["Despicable Me", "Cartoon"]
   ]
 }

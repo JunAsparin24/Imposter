@@ -1,13 +1,13 @@
 {
   "id": "gadgets",
   "words": [
-    ["Phone", "Call"], ["Headphones", "Listen"], ["Tablet", "Screen"], ["Laptop", "Typing"],
-    ["Camera", "Picture"], ["TV", "Remote"], ["Watch", "Time"], ["Game Console", "Play"],
-    ["Speaker", "Loud"], ["Socks", "Feet"], ["Pajamas", "Bedtime"], ["Sweater", "Knitted"],
-    ["Slippers", "Indoors"], ["Gift Card", "Store"], ["Money", "Bank"], ["Perfume", "Smell"],
-    ["Jewelry", "Shiny"], ["Book", "Story"], ["Board Game", "Dice"], ["Blanket", "Cozy"],
-    ["Mug", "Coffee"], ["Backpack", "School"], ["Shoes", "Laces"], ["Hat", "Head"],
-    ["Wallet", "Pocket"], ["Sunglasses", "Shade"], ["Makeup", "Mirror"], ["Flowers", "Garden"],
-    ["Drone", "Fly"], ["Basketball", "Hoop"]
+    ["Phone", "Screen"], ["Headphones", "Music"], ["Tablet", "Screen"], ["Laptop", "Screen"],
+    ["Camera", "Battery"], ["TV", "Screen"], ["Watch", "Accessory"], ["Game Console", "Screen"],
+    ["Speaker", "Music"], ["Socks", "Clothes"], ["Pajamas", "Clothes"], ["Sweater", "Clothes"],
+    ["Slippers", "Comfy"], ["Gift Card", "Easy gift"], ["Money", "Easy gift"], ["Perfume", "Bathroom"],
+    ["Jewelry", "Accessory"], ["Book", "Relaxing"], ["Board Game", "Relaxing"], ["Blanket", "Relaxing"],
+    ["Mug", "Comfy"], ["Backpack", "Carry"], ["Shoes", "Wear"], ["Hat", "Wear"],
+    ["Wallet", "Carry"], ["Sunglasses", "Accessory"], ["Makeup", "Bathroom"], ["Flowers", "Easy gift"],
+    ["Drone", "Battery"], ["Basketball", "Outside"]
   ]
 }

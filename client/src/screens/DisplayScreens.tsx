@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Check, Crown, LogIn } from 'lucide-react';
-import { MAX_PLAYERS, MIN_PLAYERS, categoryName, recommendedGrinchCount, resolveGrinchCount, type PublicPlayer } from '@imposter/shared';
+import { MIN_PLAYERS, categoryName, recommendedGrinchCount, resolveGrinchCount, type PublicPlayer } from '@imposter/shared';
 import { AvatarImg, Logo } from '../components/decor';
 import { useRoom } from '../state/GameProvider';
 import { PhaseTitle } from './RoundScreens';
@@ -95,7 +95,7 @@ export function DisplayLobby() {
   const connected = players.filter((p) => p.connected).length;
   const needed = Math.max(0, MIN_PLAYERS - connected);
   // Show 8 seats, growing a row at a time as people join (up to the max).
-  const seats = Math.min(MAX_PLAYERS, Math.max(8, Math.ceil((players.length + 1) / 4) * 4));
+  const seats = Math.min(room.settings.maxPlayers, Math.max(8, Math.ceil((players.length + 1) / 4) * 4));
   const site = window.location.host;
   const s = room.settings;
   const grinches = s.grinchCount === 'auto' ? recommendedGrinchCount(Math.max(MIN_PLAYERS, connected)) : resolveGrinchCount(s, connected);

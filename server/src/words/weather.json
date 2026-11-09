@@ -1,12 +1,12 @@
 {
   "id": "weather",
   "words": [
-    ["Snow", "White"], ["Blizzard", "Storm"], ["Icicle", "Dripping"], ["Frost", "Window"],
-    ["Snowflake", "Unique"], ["Ice", "Slippery"], ["Wind", "Breezy"], ["Rain", "Puddle"],
-    ["Thunder", "Lightning"], ["Rainbow", "Arch"], ["Sun", "Bright"], ["Cloud", "Sky"],
-    ["Fog", "Grey"], ["Cold", "Shiver"], ["Snow Day", "No school"], ["Snowplow", "Truck"],
-    ["Shovel", "Dig"], ["Thermometer", "Degrees"], ["Northern Lights", "Night sky"], ["Hail", "Bouncing"],
-    ["Tornado", "Spinning"], ["Weather Forecast", "News"], ["Melting", "Spring"], ["Frozen Lake", "Skating"],
-    ["Heater", "Warm"]
+    ["Snow", "Winter"], ["Blizzard", "Winter"], ["Icicle", "Winter"], ["Frost", "Morning"],
+    ["Snowflake", "Winter"], ["Ice", "Cold"], ["Wind", "Outside"], ["Rain", "Outside"],
+    ["Thunder", "Storm"], ["Rainbow", "Sky"], ["Sun", "Sky"], ["Cloud", "Sky"],
+    ["Fog", "Morning"], ["Cold", "Outside"], ["Snow Day", "Kids"], ["Snowplow", "Winter"],
+    ["Shovel", "Winter"], ["Thermometer", "Indoors"], ["Northern Lights", "Sky"], ["Hail", "Storm"],
+    ["Tornado", "Storm"], ["Weather Forecast", "Morning"], ["Melting", "Spring"], ["Frozen Lake", "Winter"],
+    ["Heater", "Indoors"]
   ]
 }

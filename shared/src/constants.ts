@@ -1,7 +1,9 @@
 import type { CategoryId, GameSettings } from './types';
 
 export const MIN_PLAYERS = 3;
-export const MAX_PLAYERS = 16;
+/** Hard cap on room size (one avatar each). The host picks the actual limit, up to this. */
+export const MAX_PLAYERS = 20;
+export const DEFAULT_MAX_PLAYERS = 16;
 export const NAME_MAX_LENGTH = 16;
 
 export const ROOM_CODE_LENGTH = 4;
@@ -144,6 +146,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   autoAdvance: true,
   allowRepeatWords: false,
   totalMatches: 0,
+  maxPlayers: DEFAULT_MAX_PLAYERS,
 };
 
 export const SCORING = {
@@ -168,6 +171,7 @@ export const TIMING = {
 
 /** Recommended Imposter count by player count. */
 export function recommendedGrinchCount(players: number): number {
+  if (players >= 18) return 5;
   if (players >= 14) return 4;
   if (players >= 10) return 3;
   if (players >= 6) return 2;

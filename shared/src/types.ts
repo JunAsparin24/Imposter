@@ -64,6 +64,8 @@ export interface GameSettings {
   allowRepeatWords: boolean;
   /** 0 = play indefinitely. */
   totalMatches: number;
+  /** Most players allowed in the room (3 to MAX_PLAYERS). */
+  maxPlayers: number;
 }
 
 export type PlayerStatus = 'ACTIVE' | 'ELIMINATED' | 'SPECTATOR' | 'LEFT';

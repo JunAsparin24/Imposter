@@ -5,6 +5,7 @@ import {
   DISCUSSION_MAX_SECONDS,
   DISCUSSION_PRESETS,
   MAX_PLAYERS,
+  MIN_PLAYERS,
   TURN_PRESETS,
   VOTING_PRESETS,
   categoryName,
@@ -62,6 +63,28 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
             <span className="h-10 rounded-xl bg-white/[0.04] px-3 text-sm font-semibold leading-10 text-night-400">Undercover · soon</span>
             <span className="h-10 rounded-xl bg-white/[0.04] px-3 text-sm font-semibold leading-10 text-night-400">Chaos · soon</span>
           </div>
+        </Section>
+
+        <Section title="Max players">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 rounded-xl bg-white/[0.05] p-1">
+              <StepButton label="Fewer players" onClick={() => update({ maxPlayers: Math.max(Math.max(MIN_PLAYERS, playerCount), s.maxPlayers - 1) })}>
+                <Minus size={16} />
+              </StepButton>
+              <span className="w-10 text-center font-display text-lg">{s.maxPlayers}</span>
+              <StepButton label="More players" onClick={() => update({ maxPlayers: Math.min(MAX_PLAYERS, s.maxPlayers + 1) })}>
+                <Plus size={16} />
+              </StepButton>
+            </div>
+            <Segmented
+              value={[6, 8, 12, 16, 20].includes(s.maxPlayers) ? s.maxPlayers : -1}
+              onChange={(v) => v > 0 && update({ maxPlayers: Math.max(v, playerCount) })}
+              options={[6, 8, 12, 16, 20].map((v) => ({ value: v, label: String(v) }))}
+            />
+          </div>
+          <p className="mt-2 text-xs text-night-300">
+            How many people can join this room (up to {MAX_PLAYERS}). {playerCount} in the room now.
+          </p>
         </Section>
 
         <Section title="Imposters">

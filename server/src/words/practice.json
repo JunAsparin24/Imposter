@@ -2,10 +2,10 @@
   "id": "practice",
   "note": "Super easy everyday words for the practice round (not Christmas). [word, hint].",
   "words": [
-    ["Pizza", "Cheese"], ["Dog", "Bark"], ["Beach", "Sand"], ["Ice Cream", "Cold"],
-    ["Phone", "Call"], ["Soccer", "Goal"], ["Banana", "Yellow"], ["School", "Teacher"],
-    ["Birthday", "Cake"], ["Cat", "Meow"], ["Car", "Drive"], ["Sun", "Hot"],
-    ["Swimming Pool", "Splash"], ["Chocolate", "Sweet"], ["Bed", "Sleep"], ["Burger", "Fries"],
-    ["Rain", "Umbrella"], ["Apple", "Fruit"], ["Doctor", "Hospital"], ["Airplane", "Fly"]
+    ["Pizza", "Food"], ["Dog", "Animal"], ["Beach", "Place"], ["Ice Cream", "Food"],
+    ["Phone", "Object"], ["Soccer", "Sport"], ["Banana", "Food"], ["School", "Place"],
+    ["Birthday", "Party"], ["Cat", "Animal"], ["Car", "Object"], ["Sun", "Sky"],
+    ["Swimming Pool", "Summer"], ["Chocolate", "Food"], ["Bed", "Home"], ["Burger", "Food"],
+    ["Rain", "Weather"], ["Apple", "Food"], ["Doctor", "Job"], ["Airplane", "Travel"]
   ]
 }

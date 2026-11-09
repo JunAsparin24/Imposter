@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SCORING, TIMING } from '@imposter/shared';
+import { AVATARS, SCORING, TIMING } from '@imposter/shared';
 import { GameError } from '../src/game/Room';
 import {
   continueResults,
@@ -579,5 +579,21 @@ describe('room screen and practice round', () => {
     expect(pub.matchesPlayed).toBe(0);
     continueResults(t); // practice → straight back to the lobby
     expect(t.room.phase).toBe('LOBBY');
+  });
+});
+
+describe('player limit', () => {
+  it('the host sets how many can join (3 to 20) and joins stop at that limit', () => {
+    const t = makeRoom(4);
+    expectError(() => t.room.updateSettings(t.ids[1], { maxPlayers: 5 }), 'NOT_HOST');
+    expectError(() => t.room.updateSettings(t.host, { maxPlayers: 21 }), 'INVALID_SETTINGS');
+    expectError(() => t.room.updateSettings(t.host, { maxPlayers: 3 }), 'INVALID_SETTINGS'); // 4 already here
+    t.room.updateSettings(t.host, { maxPlayers: 5 });
+    t.room.addPlayer('Fifth', 'baker');
+    expectError(() => t.room.addPlayer('Sixth', 'butler'), 'ROOM_FULL');
+    t.room.updateSettings(t.host, { maxPlayers: 20 });
+    for (let i = 0; i < 15; i++) t.room.addPlayer(`P${i}`, AVATARS.filter((a) => !t.room.takenAvatars().includes(a))[0]);
+    expect(t.room.activePlayers().length).toBe(20);
+    expectError(() => t.room.addPlayer('TooMany', 'baker'), 'ROOM_FULL');
   });
 });

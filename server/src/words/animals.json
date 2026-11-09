@@ -1,13 +1,13 @@
 {
   "id": "animals",
   "words": [
-    ["Reindeer", "Antlers"], ["Penguin", "Tuxedo"], ["Polar Bear", "Arctic"], ["Owl", "Night"],
-    ["Fox", "Sly"], ["Wolf", "Howl"], ["Dog", "Bark"], ["Cat", "Purr"],
-    ["Horse", "Ride"], ["Cow", "Moo"], ["Pig", "Mud"], ["Sheep", "Wool"],
-    ["Bunny", "Hop"], ["Squirrel", "Nuts"], ["Bear", "Cave"], ["Deer", "Forest"],
-    ["Seal", "Flippers"], ["Whale", "Ocean"], ["Fish", "Bowl"], ["Duck", "Pond"],
-    ["Chicken", "Eggs"], ["Mouse", "Squeak"], ["Elephant", "Trunk"], ["Lion", "Roar"],
-    ["Monkey", "Climb"], ["Giraffe", "Tall"], ["Turtle", "Shell"], ["Frog", "Jump"],
-    ["Snake", "Hiss"], ["Shark", "Teeth"]
+    ["Reindeer", "Winter"], ["Penguin", "Cold"], ["Polar Bear", "Cold"], ["Owl", "Bird"],
+    ["Fox", "Wild"], ["Wolf", "Wild"], ["Dog", "Pet"], ["Cat", "Pet"],
+    ["Horse", "Farm"], ["Cow", "Farm"], ["Pig", "Farm"], ["Sheep", "Farm"],
+    ["Bunny", "Pet"], ["Squirrel", "Forest"], ["Bear", "Forest"], ["Deer", "Forest"],
+    ["Seal", "Ocean"], ["Whale", "Ocean"], ["Fish", "Pet"], ["Duck", "Bird"],
+    ["Chicken", "Farm"], ["Mouse", "Pet"], ["Elephant", "Zoo"], ["Lion", "Zoo"],
+    ["Monkey", "Zoo"], ["Giraffe", "Zoo"], ["Turtle", "Pond"], ["Frog", "Pond"],
+    ["Snake", "Zoo"], ["Shark", "Ocean"]
   ]
 }

@@ -1,12 +1,12 @@
 {
   "id": "characters",
   "words": [
-    ["Santa Claus", "Beard"], ["Mrs. Claus", "Wife"], ["Rudolph", "Nose"], ["Wizard", "Wand"],
-    ["Jack Frost", "Cold"], ["Scrooge", "Grumpy"], ["Olaf", "Summer"], ["Mickey Mouse", "Disney"],
-    ["Superman", "Cape"], ["Elsa", "Queen"], ["Mario", "Plumber"], ["Pikachu", "Electric"],
-    ["Snow White", "Apple"], ["Cinderella", "Shoe"], ["Peter Pan", "Neverland"], ["Tooth Fairy", "Pillow"],
-    ["Easter Bunny", "Basket"], ["Pirate", "Treasure"], ["Princess", "Crown"], ["Witch", "Broom"],
-    ["Ghost", "Boo"], ["Snowman", "Melting"], ["Baby Jesus", "Manger"], ["Toy Soldier", "March"],
-    ["Sonic", "Fast"], ["Tinker Bell", "Dust"]
+    ["Santa Claus", "Christmas"], ["Mrs. Claus", "Christmas"], ["Rudolph", "Christmas"], ["Wizard", "Costume"],
+    ["Jack Frost", "Winter"], ["Scrooge", "Christmas"], ["Olaf", "Disney"], ["Mickey Mouse", "Cartoon"],
+    ["Superman", "Cartoon"], ["Elsa", "Disney"], ["Mario", "Video game"], ["Pikachu", "Video game"],
+    ["Snow White", "Fairy tale"], ["Cinderella", "Fairy tale"], ["Peter Pan", "Fairy tale"], ["Tooth Fairy", "Kids"],
+    ["Easter Bunny", "Kids"], ["Pirate", "Costume"], ["Princess", "Costume"], ["Witch", "Halloween"],
+    ["Ghost", "Halloween"], ["Snowman", "Winter"], ["Baby Jesus", "Christmas"], ["Toy Soldier", "Christmas"],
+    ["Sonic", "Video game"], ["Tinker Bell", "Disney"]
   ]
 }

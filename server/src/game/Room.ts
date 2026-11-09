@@ -209,7 +209,7 @@ export class Room {
   joinBlocker(): ErrorCode | null {
     if (this.locked) return 'ROOM_LOCKED';
     if (this.phase !== 'LOBBY' && this.phase !== 'SCOREBOARD') return 'GAME_IN_PROGRESS';
-    if (this.activePlayers().length >= MAX_PLAYERS) return 'ROOM_FULL';
+    if (this.activePlayers().length >= this.settings.maxPlayers) return 'ROOM_FULL';
     return null;
   }
 
@@ -218,7 +218,7 @@ export class Room {
     if (blocker === 'GAME_IN_PROGRESS') {
       throw new GameError(blocker, 'A game is already in progress in this room. Ask the host to let you in after this match.');
     }
-    if (blocker === 'ROOM_FULL') throw new GameError(blocker, `This room is full (${MAX_PLAYERS} players max).`);
+    if (blocker === 'ROOM_FULL') throw new GameError(blocker, `This room is full (${this.settings.maxPlayers} players max).`);
     if (blocker === 'ROOM_LOCKED') throw new GameError(blocker, 'The host has locked this room.');
     const base = sanitizeName(rawName);
     if (!base) throw new GameError('INVALID_INPUT', 'Please enter a display name.');
@@ -357,6 +357,13 @@ export class Room {
     next.categories = [...new Set(next.categories)];
     if (next.grinchCount !== 'auto' && (next.grinchCount < 1 || next.grinchCount > maxGrinchCount(MAX_PLAYERS))) {
       throw new GameError('INVALID_SETTINGS', 'Invalid number of Imposters.');
+    }
+    const count = this.activePlayers().length;
+    if (next.maxPlayers < MIN_PLAYERS || next.maxPlayers > MAX_PLAYERS) {
+      throw new GameError('INVALID_SETTINGS', `The player limit must be between ${MIN_PLAYERS} and ${MAX_PLAYERS}.`);
+    }
+    if (next.maxPlayers < count) {
+      throw new GameError('INVALID_SETTINGS', `There are already ${count} players in the room. Kick someone first or pick a bigger limit.`);
     }
     // Settings are snapshotted when a match starts, so editing mid-match only affects the next match.
     this.settings = next;
