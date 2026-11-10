@@ -10,7 +10,60 @@ export const ROOM_CODE_LENGTH = 4;
 /** No 0/O, 1/I/L to keep codes easy to read aloud and type. */
 export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
-export const AVATARS = [
+/**
+ * Which set of characters players pick from. Change this one line to swap back:
+ * 'noir' = the newer characters (files in client/public/avatars/noir/),
+ * 'classic' = the original characters (files in client/public/avatars/).
+ */
+export const AVATAR_SET = 'noir' as 'noir' | 'classic';
+
+export const NOIR_AVATARS = [
+  'mobster',
+  'agent',
+  'sleuth',
+  'ghost',
+  'robot',
+  'slime',
+  'pawn',
+  'black-cat',
+  'monocle',
+  'diamond',
+  'moon',
+  'shadow',
+  'gear',
+  'crystal',
+  'case-file',
+  'lantern',
+  'alien',
+  'reaper',
+  'oracle',
+  'puzzle',
+] as const;
+
+const NOIR_LABELS: Record<(typeof NOIR_AVATARS)[number], string> = {
+  'mobster': 'Mobster',
+  'agent': 'Agent',
+  'sleuth': 'Sleuth',
+  'ghost': 'Ghost',
+  'robot': 'Robot',
+  'slime': 'Slime',
+  'pawn': 'Pawn',
+  'black-cat': 'Black Cat',
+  'monocle': 'Monocle',
+  'diamond': 'Diamond',
+  'moon': 'Moon',
+  'shadow': 'Shadow',
+  'gear': 'Gear',
+  'crystal': 'Crystal',
+  'case-file': 'Case File',
+  'lantern': 'Lantern',
+  'alien': 'Alien',
+  'reaper': 'Reaper',
+  'oracle': 'Crystal Ball',
+  'puzzle': 'Puzzle',
+};
+
+export const CLASSIC_AVATARS = [
   'gentleman',
   'artist',
   'detective',
@@ -33,12 +86,7 @@ export const AVATARS = [
   'doctor',
 ] as const;
 
-export type AvatarId = (typeof AVATARS)[number];
-
-/** Pixel-art portrait for each avatar (files live in client/public/avatars/<id>.webp). */
-export const AVATAR_IMAGES: Record<AvatarId, string> = Object.fromEntries(AVATARS.map((a) => [a, a])) as Record<AvatarId, string>;
-
-export const AVATAR_LABELS: Record<AvatarId, string> = {
+const CLASSIC_LABELS: Record<(typeof CLASSIC_AVATARS)[number], string> = {
   'gentleman': 'Gentleman',
   'artist': 'Artist',
   'detective': 'Detective',
@@ -60,6 +108,18 @@ export const AVATAR_LABELS: Record<AvatarId, string> = {
   'hooded-stranger': 'Hooded Stranger',
   'doctor': 'Doctor',
 };
+
+/** The characters players can pick right now. */
+export const AVATARS: readonly string[] = AVATAR_SET === 'noir' ? NOIR_AVATARS : CLASSIC_AVATARS;
+
+export type AvatarId = string;
+
+/** Image path for each avatar, under client/public/avatars/ (without .webp). */
+export const AVATAR_IMAGES: Record<AvatarId, string> = Object.fromEntries(
+  AVATARS.map((a) => [a, AVATAR_SET === 'noir' ? `noir/${a}` : a]),
+);
+
+export const AVATAR_LABELS: Record<AvatarId, string> = AVATAR_SET === 'noir' ? NOIR_LABELS : CLASSIC_LABELS;
 
 export interface CategoryMeta {
   id: CategoryId;

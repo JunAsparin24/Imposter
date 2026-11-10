@@ -45,7 +45,7 @@ describe('word bank', () => {
 describe('room setup', () => {
   it('gives duplicate names a suffix but unique ids', () => {
     const t = makeRoom(1);
-    const a = t.room.addPlayer('Alex', 'baker');
+    const a = t.room.addPlayer('Alex', AVATARS[16]);
     const b = t.room.addPlayer('alex', 'butler');
     expect(a.id).not.toBe(b.id);
     expect(b.name).toBe('alex 2');
@@ -53,11 +53,11 @@ describe('room setup', () => {
 
   it('each avatar can only be used by one player; it frees up when they leave', () => {
     const t = makeRoom(0);
-    const a = t.room.addPlayer('Alex', 'baker');
-    expectError(() => t.room.addPlayer('Jordan', 'baker'), 'AVATAR_TAKEN');
-    expect(t.room.takenAvatars()).toEqual(['baker']);
+    const a = t.room.addPlayer('Alex', AVATARS[16]);
+    expectError(() => t.room.addPlayer('Jordan', AVATARS[16]), 'AVATAR_TAKEN');
+    expect(t.room.takenAvatars()).toEqual([AVATARS[16]]);
     t.room.removePlayer(a.id);
-    t.room.addPlayer('Jordan', 'baker');
+    t.room.addPlayer('Jordan', AVATARS[16]);
   });
 
   it('only the host can start, needs 3 players, and cannot start twice', () => {
@@ -526,7 +526,7 @@ describe('phase 2: custom packs, host controls, stats', () => {
     t.room.setLocked(t.host, true);
     expectError(() => t.room.addPlayer('Late', 'gentleman'), 'ROOM_LOCKED');
     t.room.setLocked(t.host, false);
-    t.room.addPlayer('Late', 'baker');
+    t.room.addPlayer('Late', AVATARS[16]);
     t.room.transferHost(t.host, t.ids[2]);
     expect(t.room.hostId).toBe(t.ids[2]);
     expectError(() => t.room.startMatch(t.host), 'NOT_HOST');
@@ -589,12 +589,12 @@ describe('player limit', () => {
     expectError(() => t.room.updateSettings(t.host, { maxPlayers: 21 }), 'INVALID_SETTINGS');
     expectError(() => t.room.updateSettings(t.host, { maxPlayers: 3 }), 'INVALID_SETTINGS'); // 4 already here
     t.room.updateSettings(t.host, { maxPlayers: 5 });
-    t.room.addPlayer('Fifth', 'baker');
+    t.room.addPlayer('Fifth', AVATARS[16]);
     expectError(() => t.room.addPlayer('Sixth', 'butler'), 'ROOM_FULL');
     t.room.updateSettings(t.host, { maxPlayers: 20 });
     for (let i = 0; i < 15; i++) t.room.addPlayer(`P${i}`, AVATARS.filter((a) => !t.room.takenAvatars().includes(a))[0]);
     expect(t.room.activePlayers().length).toBe(20);
-    expectError(() => t.room.addPlayer('TooMany', 'baker'), 'ROOM_FULL');
+    expectError(() => t.room.addPlayer('TooMany', AVATARS[16]), 'ROOM_FULL');
   });
 });
 

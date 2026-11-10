@@ -143,7 +143,7 @@ describe('socket integration', () => {
     const bad = await emit(c, 'room:join', { code: 12345, name: '', avatar: 'nope' });
     expect(bad.ok).toBe(false);
     if (!bad.ok) expect(bad.error.code).toBe('INVALID_INPUT');
-    const missing = await emit(c, 'room:join', { code: 'ZZZZ', name: 'Me', avatar: 'gentleman' });
+    const missing = await emit(c, 'room:join', { code: 'ZZZZ', name: 'Me', avatar: AVATARS[0] });
     expect(!missing.ok && missing.error.code).toBe('ROOM_NOT_FOUND');
     const notInRoom = await emit(c, 'game:submitVote', { voteId: 'x', picks: [], skip: true });
     expect(!notInRoom.ok && notInRoom.error.code).toBe('NOT_IN_ROOM');
@@ -151,8 +151,8 @@ describe('socket integration', () => {
     (c.socket as unknown as { emit: (...a: unknown[]) => void }).emit('room:create', 'garbage');
 
     const { code } = await setupRoom(3);
-    await ok(c, 'room:join', { code, name: 'Dup', avatar: 'baker' });
-    const again = await emit(c, 'room:join', { code, name: 'Dup', avatar: 'gentleman' });
+    await ok(c, 'room:join', { code, name: 'Dup', avatar: AVATARS[16] });
+    const again = await emit(c, 'room:join', { code, name: 'Dup', avatar: AVATARS[0] });
     expect(!again.ok && again.error.code).toBe('ALREADY_IN_ROOM');
   });
 
@@ -162,7 +162,7 @@ describe('socket integration', () => {
     const late = await connect();
     const check = await ok<{ joinable: boolean; reason: string }>(late, 'room:check', { code });
     expect(check.joinable).toBe(false);
-    const res = await emit(late, 'room:join', { code, name: 'Late', avatar: 'gentleman' });
+    const res = await emit(late, 'room:join', { code, name: 'Late', avatar: AVATARS[0] });
     expect(!res.ok && res.error.code).toBe('GAME_IN_PROGRESS');
   });
 
